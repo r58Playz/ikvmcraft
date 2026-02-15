@@ -1,0 +1,91 @@
+From 77f589bbed397a8abd736aec075bd13b2152a39a Mon Sep 17 00:00:00 2001
+From: Brendan Dahl <brendan.dahl@gmail.com>
+Date: Fri, 29 Aug 2025 23:09:28 +0000
+Subject: [PATCH] [wasmfs] Fix data race in thread initialization.
+
+The `ProxyWorker` was creating a thread in the constructor initializer list and
+using a captured reference to the `started` member variable. This is problematic
+because it is not guaranteed that the class has been fully constructed during
+the initializer list.
+
+What happens:
+1) `ProxyWorker` initializers run
+2) Thread starts and sets `started = true`
+3) `ProxyWorker` finishes construction and sets `started = false`
+4) `ProxyWorker` waits for `started` to be `true`
+
+Step 4 will never finish in this case since the thread already ran.
+
+To fix this we simply need to move the thread creation into the constructor body
+where the class is guaranteed to be fully constructed.
+
+Fixes #24370, #24676, #20650
+---
+ system/lib/wasmfs/thread_utils.h | 52 +++++++++++++++++---------------
+ 1 file changed, 28 insertions(+), 24 deletions(-)
+
+diff --git a/system/lib/wasmfs/thread_utils.h b/system/lib/wasmfs/thread_utils.h
+index 5d12400c51e00..3a7fd1f357dcf 100644
+--- a/system/lib/wasmfs/thread_utils.h
++++ b/system/lib/wasmfs/thread_utils.h
+@@ -34,32 +34,36 @@ class ProxyWorker {
+ public:
+   // Spawn the worker thread.
+   ProxyWorker()
+-    : queue(), thread([&]() {
+-        // Notify the caller that we have started.
+-        {
+-          std::unique_lock<std::mutex> lock(mutex);
+-          started = true;
+-        }
+-        cond.notify_all();
++    : queue() {
++    // Initialize the thread in the constructor to ensure the object has been
++    // fully constructed before thread starts using the object to avoid a data
++    // race. See #24370.
++    thread = std::thread([&]() {
++      // Notify the caller that we have started.
++      {
++        std::unique_lock<std::mutex> lock(mutex);
++        started = true;
++      }
++      cond.notify_all();
+ 
+-        // Sometimes the main thread is spinning, waiting on a WasmFS lock held
+-        // by a thread trying to proxy work to this dedicated worker. In that
+-        // case, the proxying message won't be relayed by the main thread and
+-        // the system will deadlock. This heartbeat ensures that proxying work
+-        // eventually gets done so the thread holding the lock can make forward
+-        // progress even if the main thread is blocked.
+-        //
+-        // TODO: Remove this once we can postMessage directly between workers
+-        // without involving the main thread or once all browsers ship
+-        // Atomics.waitAsync.
+-        //
+-        // Note that this requires adding _emscripten_proxy_execute_queue to
+-        // EXPORTED_FUNCTIONS.
+-        _wasmfs_thread_utils_heartbeat(queue.queue);
++      // Sometimes the main thread is spinning, waiting on a WasmFS lock held
++      // by a thread trying to proxy work to this dedicated worker. In that
++      // case, the proxying message won't be relayed by the main thread and
++      // the system will deadlock. This heartbeat ensures that proxying work
++      // eventually gets done so the thread holding the lock can make forward
++      // progress even if the main thread is blocked.
++      //
++      // TODO: Remove this once we can postMessage directly between workers
++      // without involving the main thread or once all browsers ship
++      // Atomics.waitAsync.
++      //
++      // Note that this requires adding _emscripten_proxy_execute_queue to
++      // EXPORTED_FUNCTIONS.
++      _wasmfs_thread_utils_heartbeat(queue.queue);
+ 
+-        // Sit in the event loop performing work as it comes in.
+-        emscripten_exit_with_live_runtime();
+-      }) {
++      // Sit in the event loop performing work as it comes in.
++      emscripten_exit_with_live_runtime();
++    });
+ 
+     // Make sure the thread has actually started before returning. This allows
+     // subsequent code to assume the thread has already been spawned and not

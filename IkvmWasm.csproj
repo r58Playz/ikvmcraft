@@ -1,0 +1,109 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+		<ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+		<Nullable>disable</Nullable>
+		<TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+		<AssemblyName>IkvmWasm</AssemblyName>
+
+		<StartupObject>IkvmWasm</StartupObject>
+
+		<CompressionEnabled>false</CompressionEnabled>
+		<PublishTrimmed>false</PublishTrimmed>
+		<TrimMode>partial</TrimMode>
+
+		<NoWarn>IL2026,IL2045,IL2046,IL2055,IL2057,IL2060,IL2062,IL2065,IL2067,IL2070,IL2072,IL2075,IL2077,IL2080,IL2087,IL2090,IL2091,IL2104,IL2111</NoWarn>
+		<NoWarn>$(NoWarn),SYSLIB0003,SYSLIB0011,CS0169,CS0219,CS0649,CS1998,CS8981,CA2022,CA1416,CS0436,CS0626</NoWarn>
+
+		<WasmBuildNative>true</WasmBuildNative>
+		<WasmEnableThreads>true</WasmEnableThreads>
+		<WasmEnableSIMD>true</WasmEnableSIMD>
+		<WasmEnableExceptionHandling>false</WasmEnableExceptionHandling>
+		<WasmEnableWebcil>false</WasmEnableWebcil>
+		<WasmRunWasmOpt>false</WasmRunWasmOpt>
+
+		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
+		<WasmNativeStrip>false</WasmNativeStrip>
+		<WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
+
+		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
+
+		<!-- MAXIMUM_MEMORY is 4GiB - 1 wasm page (64kib) -->
+		<EmccExtraLDFlags>-sMIN_WEBGL_VERSION=2 -sWASMFS -sOFFSCREENCANVAS_SUPPORT -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc</EmccExtraLDFlags>
+		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
+		<EmccCompileOptimizationFlag>-O3</EmccCompileOptimizationFlag>
+		<EmccEnvironment>web,worker</EmccEnvironment>
+		<MicrosoftNetCoreAppRuntimePackDir>$(MSBuildProjectDirectory)\statics\dotnet</MicrosoftNetCoreAppRuntimePackDir>
+		<MicrosoftNetCoreAppRuntimePackRidDir>$(MicrosoftNetCoreAppRuntimePackDir)\runtimes\browser-wasm</MicrosoftNetCoreAppRuntimePackRidDir>
+
+		<WasmCachePath>$(MSBuildProjectDirectory)\..\emsdk\upstream\emscripten\cache\</WasmCachePath>
+		<__IkvmWasmEmscriptenSdkToolsPath>$(MSBuildProjectDirectory)\emsdk\upstream\</__IkvmWasmEmscriptenSdkToolsPath>
+		<__IkvmWasmEmscriptenUpstreamBinPath>$(MSBuildProjectDirectory)\emsdk\upstream\bin\</__IkvmWasmEmscriptenUpstreamBinPath>
+		<__IkvmWasmEmscriptenUpstreamEmscriptenPath>$(MSBuildProjectDirectory)\emsdk\upstream\emscripten\</__IkvmWasmEmscriptenUpstreamEmscriptenPath>
+		<__IkvmWasmEmscriptenNodeToolsPath>$(MSBuildProjectDirectory)\emsdk\node\22.16.0_64bit\bin\node</__IkvmWasmEmscriptenNodeToolsPath>
+		<__IkvmWasmWasmClang>$(MSBuildProjectDirectory)\emsdk\upstream\emscripten\emcc</__IkvmWasmWasmClang>
+	</PropertyGroup>
+
+	<!-- Update ResolvedRuntimePack to use our custom runtime pack so that dotnet.js comes from the same source as dotnet.native.js -->
+	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
+		<ItemGroup>
+			<ResolvedRuntimePack PackageDirectory="$(MicrosoftNetCoreAppRuntimePackDir)"
+			                     Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
+		</ItemGroup>
+		<Message Text="Using custom runtime pack: %(ResolvedRuntimePack.PackageDirectory)" Importance="High" />
+	</Target>
+
+	<ItemGroup>
+		<WasmOptConfigurationFlags Include="-O4 -O4 -O4"></WasmOptConfigurationFlags>
+	</ItemGroup>
+
+	<ItemGroup>
+		<NativeFileReference Include="Emscripten.c" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.3" />
+
+		<Compile Remove="frontend\**" />
+		<Content Remove="frontend\**" />
+	</ItemGroup>
+
+	<!-- do not touch unless you like debugging -->
+	<Target Name="ChangeClang" DependsOnTargets="_InitializeCommonProperties" BeforeTargets="_SetupEmscripten">
+		<PropertyGroup>
+			<EmscriptenSdkToolsPath>$(__IkvmWasmEmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
+			<EmscriptenUpstreamBinPath>$(__IkvmWasmEmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
+			<EmscriptenUpstreamEmscriptenPath>$(__IkvmWasmEmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
+			<EmscriptenNodeToolsPath>$(__IkvmWasmEmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<WasmClang>$(__IkvmWasmWasmClang)</WasmClang>
+		</PropertyGroup>
+		<ItemGroup>
+			<EmscriptenPrependPATH Remove="/usr/share/dotnet/packs/*" />
+			<EmscriptenPrependPATH Include="$(EmscriptenSdkToolsPath)" />
+			<EmscriptenPrependPATH Include="$(EmscriptenUpstreamBinPath)" />
+			<EmscriptenPrependPATH Include="$([MSBuild]::NormalizeDirectory($(EmscriptenSdkToolsPath), 'emscripten'))" />
+			<EmscriptenPrependPATH Include="$(EmscriptenNodeToolsPath)" />
+		</ItemGroup>
+	</Target>
+
+	<Target Name="ChangeClang2" DependsOnTargets="_GenerateManagedToNative" BeforeTargets="_WasmCompileNativeSourceFiles">
+		<PropertyGroup>
+			<EmscriptenSdkToolsPath>$(__IkvmWasmEmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
+			<EmscriptenUpstreamBinPath>$(__IkvmWasmEmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
+			<EmscriptenUpstreamEmscriptenPath>$(__IkvmWasmEmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
+			<EmscriptenNodeToolsPath>$(__IkvmWasmEmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<WasmClang>$(__IkvmWasmWasmClang)</WasmClang>
+		</PropertyGroup>
+		<ItemGroup>
+			<EmscriptenPrependPATH Remove="/usr/share/dotnet/packs/*" />
+			<EmscriptenPrependPATH Include="$(EmscriptenSdkToolsPath)" />
+			<EmscriptenPrependPATH Include="$(EmscriptenUpstreamBinPath)" />
+			<EmscriptenPrependPATH Include="$([MSBuild]::NormalizeDirectory($(EmscriptenSdkToolsPath), 'emscripten'))" />
+			<EmscriptenPrependPATH Include="$(EmscriptenNodeToolsPath)" />
+			<EmscriptenEnvVars Include="PATH=$(EmscriptenSdkToolsPath):$(EmscriptenUpstreamBinPath):$([MSBuild]::NormalizeDirectory($(EmscriptenSdkToolsPath), 'emscripten')):$(EmscriptenNodeToolsPath):$(PATH)" />
+		</ItemGroup>
+	</Target>
+</Project>
