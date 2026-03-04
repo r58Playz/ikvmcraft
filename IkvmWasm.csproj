@@ -61,12 +61,28 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<NativeFileReference Include="statics\ikvm\libiava.a" />
+		<NativeFileReference Include="statics\ikvm\libikvm.a" />
+		<NativeFileReference Include="statics\ikvm\libjvm.a" />
 		<NativeFileReference Include="Emscripten.c" />
+		<NativeFileReference Include="statics.c" />
+
+		<!-- trick mono wasm into letting the load through -->
+		<_WasmPInvokeModules Include="/ikvm/bin/libjvm.so" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<Reference Include="statics\ikvm\IKVM.ByteCode.dll" />
+		<Reference Include="statics\ikvm\IKVM.CoreLib.dll" />
+		<Reference Include="statics\ikvm\IKVM.Java.dll" />
+		<Reference Include="statics\ikvm\IKVM.Runtime.dll" />
 		<PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.3" />
 
+		<None Remove="statics\**" />
+		<Compile Remove="statics\**" />
+		<Content Remove="statics\**" />
+		<EmbeddedResource Remove="statics\**" />
+		<None Remove="frontend\**" />
 		<Compile Remove="frontend\**" />
 		<Content Remove="frontend\**" />
 	</ItemGroup>

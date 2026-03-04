@@ -25,13 +25,13 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	});
 	console.debug("PreInit...");
 	await runtime.runMain();
-	await exports.WinformsWasm.PreInit(location.href);
+	await exports.IkvmWasm.PreInit(location.href);
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
 }
 
 export async function play() {
 	console.debug("Run...");
-	await exports.WinformsWasm.Run(false);
+	await exports.IkvmWasm.Run();
 	console.debug("Exited");
 }
