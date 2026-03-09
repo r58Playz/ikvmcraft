@@ -1,5 +1,5 @@
-STATICS_RELEASE=ed859c6f-413e-40ba-88a0-930cd947eff0
-IKVM_RELEASE=fe1cbfa7-fc81-4135-a7d3-b808f7485136
+STATICS_RELEASE=6df18225-1fc9-4ded-89bc-685a30135736
+IKVM_RELEASE=539415b0-fd68-4da4-9b88-a3960e5ad664
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:
@@ -40,12 +40,5 @@ serve: build
 
 publish: build
 	cd frontend && pnpm build
-
-testjar:
-	mkdir -p frontend/public/assets/.testjar/build
-	javac -d frontend/public/assets/.testjar/build test/Hello.java
-	jar cfe frontend/public/assets/main.jar Hello -C frontend/public/assets/.testjar/build .
-	rm -rf frontend/public/assets/.testjar
-
 
 .PHONY: clean build serve publish testjar

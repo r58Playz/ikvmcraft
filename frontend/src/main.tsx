@@ -1,6 +1,6 @@
-import { FC } from "dreamland/core";
+import { css, FC } from "dreamland/core";
 import "./style.css";
-import { initDotnet, play } from "./dotnet";
+import { dotnetState, initDotnet, play } from "./dotnet";
 
 function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 	this.cx.mount = async () => {
@@ -10,9 +10,15 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 
 	return (
 		<div>
-			<canvas id="canvas" class="canvas" this={use(this.canvas)} />
+			{use(dotnetState.logs).mapEach(x => <div>{x}</div>)}
 		</div>
 	)
 }
+App.style = css`
+	:scope {
+		overflow: scroll;
+		height: 100%;
+	}
+`;
 
 document.querySelector("#app")!.replaceWith(<App />);

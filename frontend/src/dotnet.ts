@@ -1,3 +1,4 @@
+import { createState } from "dreamland/core";
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
 
 const wasm: ModuleAPI = await eval(`import("/_framework/dotnet.js")`);
@@ -6,15 +7,54 @@ let runtime: RuntimeAPI;
 let config: MonoConfig;
 let exports: any;
 
+export let dotnetState = createState({
+	logs: [] as string[]
+});
+
+console.log = new Proxy(console.log, {
+	apply(target, thisArg, argArray) {
+	    dotnetState.logs = [...dotnetState.logs, argArray.join(" ")];
+		return Reflect.apply(target, thisArg, argArray);
+	},
+})
+
+const rootFolder = await navigator.storage.getDirectory();
+(globalThis as any).selectjar = async () => {
+	let [file] = await showOpenFilePicker();
+	const data = await file.getFile().then((r) => r.stream());
+	let handle = await rootFolder.getFileHandle("main.jar", { create: true });
+	const writable = await handle.createWritable();
+	await data.pipeTo(writable);
+}
+
 export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.time("dotnet ");
-	runtime = await dotnet.withEnvironmentVariables({ "FONTCONFIG_PATH": "/etc/fonts" }).create();
+	runtime = await dotnet
+		.withConfig({ pthreadPoolInitialSize: 16 })
+		.withRuntimeOptions([
+			// jit functions quickly and jit more functions
+			`--jiterpreter-minimum-trace-hit-count=${500}`,
+
+			// monitor jitted functions for less time
+			`--jiterpreter-trace-monitoring-period=${100}`,
+
+			// reject less funcs
+			`--jiterpreter-trace-monitoring-max-average-penalty=${150}`,
+
+			// increase jit function limits
+			`--jiterpreter-wasm-bytes-limit=${64 * 1024 * 1024}`,
+			`--jiterpreter-table-size=${32 * 1024}`,
+
+			// print jit stats
+			`--jiterpreter-stats-enabled`,
+		])
+		.create();
 
 	config = runtime.getConfig();
 	exports = await runtime.getAssemblyExports(config.mainAssemblyName!);
 	(runtime.Module as any).canvas = canvas;
 
-	Object.assign(globalThis, {
+	(globalThis as any).wasm = {
 		Module: runtime.Module,
 		FS: (runtime.Module as any).FS,
 		dotnet,
@@ -22,7 +62,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		config,
 		exports,
 		canvas,
-	});
+	};
 	console.debug("PreInit...");
 	await runtime.runMain();
 	await exports.IkvmWasm.PreInit(location.href);
@@ -32,6 +72,6 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 export async function play() {
 	console.debug("Run...");
-	await exports.IkvmWasm.Run();
+	await exports.IkvmWasm.Run("/libsdl/main.jar");
 	console.debug("Exited");
 }

@@ -21,9 +21,9 @@
 		<WasmBuildNative>true</WasmBuildNative>
 		<WasmEnableThreads>true</WasmEnableThreads>
 		<WasmEnableSIMD>true</WasmEnableSIMD>
-		<WasmEnableExceptionHandling>false</WasmEnableExceptionHandling>
+		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>false</WasmRunWasmOpt>
+		<WasmRunWasmOpt>true</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
@@ -57,13 +57,16 @@
 	</Target>
 
 	<ItemGroup>
-		<WasmOptConfigurationFlags Include="-O4 -O4 -O4"></WasmOptConfigurationFlags>
+		<WasmOptConfigurationFlags Include="-O4 -O4 -O4  --gufa --closed-world -O4 -O4 -O4"></WasmOptConfigurationFlags>
 	</ItemGroup>
 
 	<ItemGroup>
 		<NativeFileReference Include="statics\ikvm\libiava.a" />
 		<NativeFileReference Include="statics\ikvm\libikvm.a" />
 		<NativeFileReference Include="statics\ikvm\libjvm.a" />
+		<NativeFileReference Include="statics\ikvm\libzip.a" />
+		<NativeFileReference Include="statics\ikvm\libnio.a" />
+		<NativeFileReference Include="statics\ikvm\libnet.a" />
 		<NativeFileReference Include="Emscripten.c" />
 		<NativeFileReference Include="statics.c" />
 

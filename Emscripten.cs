@@ -71,22 +71,24 @@ public static class Emscripten
     }
 
     [DllImport("Emscripten")]
-    internal extern static int mount_fetch(string srcdir, string dstdir);
+    private extern static int mount_fetch(int id, string srcdir, string dstdir);
     [DllImport("Emscripten")]
-    internal extern static int mount_fetch_file(string path);
+    private extern static int mount_fetch_file(int id, string path);
 
-    public static void MountFetch(string src, string dst)
+	private static string[] FetchIDs = new string[8];
+
+    public static void MountFetch(int id, string src, string dst)
     {
-        int ret = mount_fetch(src, dst);
+        int ret = mount_fetch(id, src, dst);
         if (ret != 0)
         {
             throw new Exception($"Failed to mount FetchFS from {src} to {dst}: {ret}");
         }
     }
 
-    public static void MountFetchFile(string path)
+    public static void MountFetchFile(int id, string path)
     {
-        int ret = mount_fetch_file(path);
+        int ret = mount_fetch_file(id, path);
         if (ret != 0)
         {
             throw new Exception($"Failed to mount FetchFS file at {path}: {ret}");
