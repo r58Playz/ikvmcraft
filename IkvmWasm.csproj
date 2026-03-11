@@ -57,7 +57,7 @@
 	</Target>
 
 	<ItemGroup>
-		<WasmOptConfigurationFlags Include="-O4 -O4 -O4  --gufa --closed-world -O4 -O4 -O4"></WasmOptConfigurationFlags>
+		<WasmOptConfigurationFlags Include="-O4 -O4 -O4  --gufa --closed-world -O4 -O4 -O4 -g"></WasmOptConfigurationFlags>
 	</ItemGroup>
 
 	<ItemGroup>
