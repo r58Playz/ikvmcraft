@@ -44,3 +44,8 @@ uint64_t wasm_icall_lii(uint32_t a, uint32_t b) { return 0; }
 uint64_t wasm_icall_liii(uint32_t a, uint32_t b, uint32_t c) { return 0; }
 uint32_t wasm_icall_iiiliii(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint32_t e, uint32_t f) { return 0; }
 void wasm_icall_viil(uint32_t a, uint32_t b, uint64_t c) {}
+
+void mono_threads_request_thread_dump (void);
+EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {
+	mono_threads_request_thread_dump();
+}

@@ -1,32 +1,25 @@
-STATICS_RELEASE=afeb5c03-b288-4b8d-8a9c-3e3127dd990a
+STATICS_RELEASE=5ca6e290-3dbe-49dd-b7f8-647e3af0a709
 IKVM_RELEASE=ad33b544-49b0-46f8-9540-5fd5b4b5176f
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:
 	mkdir statics
 	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/dotnet.zip -O statics/dotnet.zip
+	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/emsdk.zip -O statics/emsdk.zip
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/ikvm-wasm-bundle.zip -O statics/ikvm.zip
-
-emsdk:
-	git clone https://github.com/emscripten-core/emsdk
-	./emsdk/emsdk install 3.1.56
-	./emsdk/emsdk activate 3.1.56
-	python3 ./sanitizeemsdk.py "$(shell realpath ./emsdk/)"
-	patch -p1 --directory emsdk/upstream/emscripten/ < emsdk.patch
-	patch -p1 --directory emsdk/upstream/emscripten/ < emsdk.2.patch
-	rm -rvf emsdk/upstream/emscripten/cache/*
 
 dotnetclean:
 	rm -rvf {bin,obj} || true
 clean: dotnetclean
 	rm -rvf statics || true
 
-deps: statics emsdk
+deps: statics
 
 build: deps
-	rm -r statics/{dotnet,ikvm} frontend/public/{_framework,ikvm} bin/Release/net10.0/publish/wwwroot/_framework || true
+	rm -r statics/{dotnet,ikvm,emsdk} frontend/public/{_framework,ikvm} bin/Release/net10.0/publish/wwwroot/_framework || true
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
+	unzip -q -o statics/emsdk.zip -d statics/
 	dotnet publish -c Release $(DOTNETFLAGS)
 	cp -r bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/

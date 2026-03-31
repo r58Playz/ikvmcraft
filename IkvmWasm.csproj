@@ -14,6 +14,9 @@
 		<CompressionEnabled>false</CompressionEnabled>
 		<PublishTrimmed>false</PublishTrimmed>
 		<TrimMode>partial</TrimMode>
+		<RunAOTCompilation>true</RunAOTCompilation>
+		<WasmDedup>false</WasmDedup>
+		<WasmStripILAfterAOT>false</WasmStripILAfterAOT>
 
 		<NoWarn>IL2026,IL2045,IL2046,IL2055,IL2057,IL2060,IL2062,IL2065,IL2067,IL2070,IL2072,IL2075,IL2077,IL2080,IL2087,IL2090,IL2091,IL2104,IL2111</NoWarn>
 		<NoWarn>$(NoWarn),SYSLIB0003,SYSLIB0011,CS0169,CS0219,CS0649,CS1998,CS8981,CA2022,CA1416,CS0436,CS0626</NoWarn>
@@ -23,7 +26,7 @@
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>true</WasmRunWasmOpt>
+		<WasmRunWasmOpt>false</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
@@ -36,24 +39,54 @@
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
 		<EmccCompileOptimizationFlag>-O3</EmccCompileOptimizationFlag>
 		<EmccEnvironment>web,worker</EmccEnvironment>
+
 		<MicrosoftNetCoreAppRuntimePackDir>$(MSBuildProjectDirectory)\statics\dotnet</MicrosoftNetCoreAppRuntimePackDir>
 		<MicrosoftNetCoreAppRuntimePackRidDir>$(MicrosoftNetCoreAppRuntimePackDir)\runtimes\browser-wasm</MicrosoftNetCoreAppRuntimePackRidDir>
-
-		<WasmCachePath>$(MSBuildProjectDirectory)\..\emsdk\upstream\emscripten\cache\</WasmCachePath>
-		<__IkvmWasmEmscriptenSdkToolsPath>$(MSBuildProjectDirectory)\emsdk\upstream\</__IkvmWasmEmscriptenSdkToolsPath>
-		<__IkvmWasmEmscriptenUpstreamBinPath>$(MSBuildProjectDirectory)\emsdk\upstream\bin\</__IkvmWasmEmscriptenUpstreamBinPath>
-		<__IkvmWasmEmscriptenUpstreamEmscriptenPath>$(MSBuildProjectDirectory)\emsdk\upstream\emscripten\</__IkvmWasmEmscriptenUpstreamEmscriptenPath>
-		<__IkvmWasmEmscriptenNodeToolsPath>$(MSBuildProjectDirectory)\emsdk\node\22.16.0_64bit\bin\node</__IkvmWasmEmscriptenNodeToolsPath>
-		<__IkvmWasmWasmClang>$(MSBuildProjectDirectory)\emsdk\upstream\emscripten\emcc</__IkvmWasmWasmClang>
+		<EmsdkRoot>$(MSBuildProjectDirectory)\statics\emsdk\</EmsdkRoot>
+		<WasmCachePath>$(EmsdkRoot)\emscripten\cache\</WasmCachePath>
+		<__EmscriptenSdkToolsPath>$(EmsdkRoot)</__EmscriptenSdkToolsPath>
+		<__EmscriptenUpstreamBinPath>$(EmsdkRoot)bin/</__EmscriptenUpstreamBinPath>
+		<__EmscriptenUpstreamEmscriptenPath>$(EmsdkRoot)emscripten/</__EmscriptenUpstreamEmscriptenPath>
+		<__EmscriptenNodeToolsPath>$(EmsdkRoot)node/bin/node</__EmscriptenNodeToolsPath>
+		<__WasmClang>$(EmsdkRoot)emscripten/emcc</__WasmClang>
 	</PropertyGroup>
 
-	<!-- Update ResolvedRuntimePack to use our custom runtime pack so that dotnet.js comes from the same source as dotnet.native.js -->
+	<ItemGroup>
+		<AOTWhitelist Include="System.Private.CoreLib" />
+		<AOTWhitelist Include="System.Collections" />
+		<AOTWhitelist Include="System.Collections.Concurrent" />
+		<AOTWhitelist Include="mscorlib" />
+		<AOTWhitelist Include="netstandard" />
+
+		<AOTWhitelist Include="IKVM.ByteCode" />
+		<AOTWhitelist Include="IKVM.CoreLib" />
+		<AOTWhitelist Include="IKVM.Runtime" />
+	</ItemGroup>
+
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
 		<ItemGroup>
 			<ResolvedRuntimePack PackageDirectory="$(MicrosoftNetCoreAppRuntimePackDir)"
-			                     Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
+				Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
 		</ItemGroup>
 		<Message Text="Using custom runtime pack: %(ResolvedRuntimePack.PackageDirectory)" Importance="High" />
+	</Target>
+
+	<Target Name="BypassWasmAOTTrimCheck" BeforeTargets="_WasmAotCompileApp">
+		<PropertyGroup>
+			<PublishTrimmed>true</PublishTrimmed>
+		</PropertyGroup>
+		<Message Text="Bypassing wasm AOT trim check" Importance="High" />
+	</Target>
+
+	<Target Name="AOTOnlyCorlib" BeforeTargets="_WasmAotCompileApp">
+		<PropertyGroup>
+			<_AOTWhitelist>|@(AOTWhitelist, '|')|</_AOTWhitelist>
+		</PropertyGroup>
+		<ItemGroup>
+			<_AOT_InternalForceInterpretAssemblies Include="@(_WasmAssembliesInternal)" Condition="!$([System.String]::new('$(_AOTWhitelist)').Contains('|%(Filename)|'))" />
+		</ItemGroup>
+
+		<Message Text="AOT filter enabled: only whitelist assemblies are AOT-compiled" Importance="High" />
 	</Target>
 
 	<ItemGroup>
@@ -93,11 +126,11 @@
 	<!-- do not touch unless you like debugging -->
 	<Target Name="ChangeClang" DependsOnTargets="_InitializeCommonProperties" BeforeTargets="_SetupEmscripten">
 		<PropertyGroup>
-			<EmscriptenSdkToolsPath>$(__IkvmWasmEmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
-			<EmscriptenUpstreamBinPath>$(__IkvmWasmEmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
-			<EmscriptenUpstreamEmscriptenPath>$(__IkvmWasmEmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
-			<EmscriptenNodeToolsPath>$(__IkvmWasmEmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
-			<WasmClang>$(__IkvmWasmWasmClang)</WasmClang>
+			<EmscriptenSdkToolsPath>$(__EmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
+			<EmscriptenUpstreamBinPath>$(__EmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
+			<EmscriptenUpstreamEmscriptenPath>$(__EmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
+			<EmscriptenNodeToolsPath>$(__EmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<WasmClang>$(__WasmClang)</WasmClang>
 		</PropertyGroup>
 		<ItemGroup>
 			<EmscriptenPrependPATH Remove="/usr/share/dotnet/packs/*" />
@@ -110,11 +143,11 @@
 
 	<Target Name="ChangeClang2" DependsOnTargets="_GenerateManagedToNative" BeforeTargets="_WasmCompileNativeSourceFiles">
 		<PropertyGroup>
-			<EmscriptenSdkToolsPath>$(__IkvmWasmEmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
-			<EmscriptenUpstreamBinPath>$(__IkvmWasmEmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
-			<EmscriptenUpstreamEmscriptenPath>$(__IkvmWasmEmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
-			<EmscriptenNodeToolsPath>$(__IkvmWasmEmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
-			<WasmClang>$(__IkvmWasmWasmClang)</WasmClang>
+			<EmscriptenSdkToolsPath>$(__EmscriptenSdkToolsPath)</EmscriptenSdkToolsPath>
+			<EmscriptenUpstreamBinPath>$(__EmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
+			<EmscriptenUpstreamEmscriptenPath>$(__EmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
+			<EmscriptenNodeToolsPath>$(__EmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<WasmClang>$(__WasmClang)</WasmClang>
 		</PropertyGroup>
 		<ItemGroup>
 			<EmscriptenPrependPATH Remove="/usr/share/dotnet/packs/*" />
