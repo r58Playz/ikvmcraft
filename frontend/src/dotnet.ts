@@ -31,6 +31,11 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.time("dotnet ");
 	runtime = await dotnet
 		.withConfig({ pthreadPoolInitialSize: 16 })
+		/*
+		.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
+		.withEnvironmentVariable("MONO_LOG_MASK", "all")
+		.withEnvironmentVariable("IKVM_DISABLE_STACKTRACE_CLEANING", "true")
+		*/
 		.withRuntimeOptions([
 			// jit functions quickly and jit more functions
 			`--jiterpreter-minimum-trace-hit-count=${500}`,

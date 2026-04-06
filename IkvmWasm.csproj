@@ -26,7 +26,7 @@
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>false</WasmRunWasmOpt>
+		<WasmRunWasmOpt>true</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
@@ -68,14 +68,12 @@
 			<ResolvedRuntimePack PackageDirectory="$(MicrosoftNetCoreAppRuntimePackDir)"
 				Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
 		</ItemGroup>
-		<Message Text="Using custom runtime pack: %(ResolvedRuntimePack.PackageDirectory)" Importance="High" />
 	</Target>
 
 	<Target Name="BypassWasmAOTTrimCheck" BeforeTargets="_WasmAotCompileApp">
 		<PropertyGroup>
 			<PublishTrimmed>true</PublishTrimmed>
 		</PropertyGroup>
-		<Message Text="Bypassing wasm AOT trim check" Importance="High" />
 	</Target>
 
 	<Target Name="AOTOnlyCorlib" BeforeTargets="_WasmAotCompileApp">
@@ -85,8 +83,6 @@
 		<ItemGroup>
 			<_AOT_InternalForceInterpretAssemblies Include="@(_WasmAssembliesInternal)" Condition="!$([System.String]::new('$(_AOTWhitelist)').Contains('|%(Filename)|'))" />
 		</ItemGroup>
-
-		<Message Text="AOT filter enabled: only whitelist assemblies are AOT-compiled" Importance="High" />
 	</Target>
 
 	<ItemGroup>
