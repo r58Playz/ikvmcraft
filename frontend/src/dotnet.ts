@@ -77,6 +77,8 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 export async function play() {
 	console.debug("Run...");
-	await exports.IkvmWasm.Run("/libsdl/main.jar");
+	await exports.IkvmWasm.Run("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.game.VoxelGameGL");
+	//await exports.IkvmWasm.Run("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.opengl.camera.FreeCameraDemo");
+	//await exports.IkvmWasm.Run("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.opengl.shadow.ShadowMappingDemo20");
 	console.debug("Exited");
 }

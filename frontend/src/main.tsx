@@ -10,6 +10,7 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 
 	return (
 		<div>
+			<canvas id="canvas" class="canvas" this={use(this.canvas)} />
 			{use(dotnetState.logs).mapEach(x => <div>{x}</div>)}
 		</div>
 	)

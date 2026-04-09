@@ -14,7 +14,7 @@
 		<CompressionEnabled>false</CompressionEnabled>
 		<PublishTrimmed>false</PublishTrimmed>
 		<TrimMode>partial</TrimMode>
-		<RunAOTCompilation>true</RunAOTCompilation>
+		<RunAOTCompilation>false</RunAOTCompilation>
 		<WasmDedup>false</WasmDedup>
 		<WasmStripILAfterAOT>false</WasmStripILAfterAOT>
 
@@ -26,7 +26,7 @@
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>true</WasmRunWasmOpt>
+		<WasmRunWasmOpt>false</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
@@ -35,7 +35,9 @@
 		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
 
 		<!-- MAXIMUM_MEMORY is 4GiB - 1 wasm page (64kib) -->
-		<EmccExtraLDFlags>-sMIN_WEBGL_VERSION=2 -sWASMFS -sOFFSCREENCANVAS_SUPPORT -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc</EmccExtraLDFlags>
+		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sOFFSCREENCANVAS_SUPPORT</EmccExtraLDFlags>
+		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
+		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/statics/lib_emscripten_glfw3.js</EmccExtraLDFlags>
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
 		<EmccCompileOptimizationFlag>-O3</EmccCompileOptimizationFlag>
 		<EmccEnvironment>web,worker</EmccEnvironment>
@@ -76,7 +78,7 @@
 		</PropertyGroup>
 	</Target>
 
-	<Target Name="AOTOnlyCorlib" BeforeTargets="_WasmAotCompileApp">
+	<Target Name="AotOnlyWhitelisted" BeforeTargets="_WasmAotCompileApp">
 		<PropertyGroup>
 			<_AOTWhitelist>|@(AOTWhitelist, '|')|</_AOTWhitelist>
 		</PropertyGroup>
@@ -99,8 +101,15 @@
 		<NativeFileReference Include="Emscripten.c" />
 		<NativeFileReference Include="statics.c" />
 
+		<NativeFileReference Include="statics\libglfw3.a" />
+		<NativeFileReference Include="statics\liblwjgl3.a" />
+		<NativeFileReference Include="statics\libjemalloc.a" />
+		<NativeFileReference Include="statics\libffi.a" />
+		<NativeFileReference Include="statics\liblwjgl_stb.a" />
+
 		<!-- trick mono wasm into letting the load through -->
 		<_WasmPInvokeModules Include="/ikvm/bin/libjvm.so" />
+		<_WasmPInvokeModules Include="/tmp/liblwjgl.so" />
 	</ItemGroup>
 
 	<ItemGroup>

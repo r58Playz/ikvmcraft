@@ -4,7 +4,16 @@
 #include <assert.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+const char *malloc_conf = "abort_conf:false";
+
+extern void mobileglues_proc_init();
+void mg_init() {
+	setenv("MG_DIR_PATH", "/mobileglues", true);
+	mobileglues_proc_init();
+}
 
 extern int managed_em_loop_callback(void);
 
@@ -31,6 +40,12 @@ int mount_fetch(int id, char *srcdir, char *dstdir) {
 	return wasmfs_create_directory(dstdir, 0777, fetch_backend[id]);
 }
 
+int mount_fetch_dir(int id, char *path) {
+	if (!fetch_backend[id]) return -1;
+
+	return wasmfs_create_directory(path, 0777, fetch_backend[id]);
+}
+
 int mount_fetch_file(int id, char *path) {
 	if (!fetch_backend[id]) return -1;
 
@@ -44,6 +59,29 @@ uint64_t wasm_icall_lii(uint32_t a, uint32_t b) { return 0; }
 uint64_t wasm_icall_liii(uint32_t a, uint32_t b, uint32_t c) { return 0; }
 uint32_t wasm_icall_iiiliii(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint32_t e, uint32_t f) { return 0; }
 void wasm_icall_viil(uint32_t a, uint32_t b, uint64_t c) {}
+void wasm_icall_viili(uint32_t a, uint32_t b, uint64_t c, uint32_t d) {}
+uint32_t wasm_icall_iiilii(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint32_t e) { return 0; }
+uint32_t wasm_icall_iiiili(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint32_t e) { return 0; }
+uint32_t wasm_icall_iiiiilli(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint64_t e, uint64_t f, uint32_t g) { return 0; }
+uint64_t wasm_icall_liil(uint32_t a, uint32_t b, uint64_t c) { return 0; }
+void wasm_icall_viiill(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint64_t e) {}
+uint32_t wasm_icall_iiill(uint32_t a, uint32_t b, uint64_t c, uint64_t d) { return 0; }
+uint64_t wasm_icall_liili(uint32_t a, uint32_t b, uint64_t c, uint32_t d) { return 0; }
+uint64_t wasm_icall_liill(uint32_t a, uint32_t b, uint64_t c, uint64_t d) { return 0; }
+uint64_t wasm_icall_liiiillll(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h) { return 0; }
+void wasm_icall_viiliil(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint32_t e, uint64_t f) {}
+uint32_t wasm_icall_iiiliill(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint32_t e, uint64_t f, uint64_t g) { return 0; }
+uint32_t wasm_icall_iiilllll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g) { return 0; }
+uint64_t wasm_icall_liilll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64_t e) { return 0; }
+void wasm_icall_viillll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {}
+void wasm_icall_viill(uint32_t a, uint32_t b, uint64_t c, uint64_t d) {}
+uint64_t wasm_icall_liiiil(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint64_t e) { return 0; }
+void wasm_icall_viiil(uint32_t a, uint32_t b, uint32_t c, uint64_t d) {}
+void wasm_icall_viiffff(uint32_t a, uint32_t b, float c, float d, float e, float f) {}
+void wasm_icall_viillllll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h) {}
+uint64_t wasm_icall_liilillli(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint64_t e, uint64_t f, uint64_t g, uint32_t h) { return 0; }
+void wasm_icall_viiiiiiiil(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint64_t k) {}
+void wasm_icall_viiiill(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint64_t e, uint64_t f) {}
 
 void mono_threads_request_thread_dump (void);
 EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {

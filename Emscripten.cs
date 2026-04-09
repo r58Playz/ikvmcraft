@@ -20,8 +20,9 @@ public static class Emscripten
         {
             keepGoing = EmLoopCb();
         }
-        catch
+        catch (Exception ex)
         {
+            ExceptionLogging.WriteException(ex, "Error in managed_em_loop_callback");
             keepGoing = false;
         }
 
@@ -74,6 +75,8 @@ public static class Emscripten
     private extern static int mount_fetch(int id, string srcdir, string dstdir);
     [DllImport("Emscripten")]
     private extern static int mount_fetch_file(int id, string path);
+    [DllImport("Emscripten")]
+    private extern static int mount_fetch_dir(int id, string path);
 
 	private static string[] FetchIDs = new string[8];
 
@@ -92,6 +95,15 @@ public static class Emscripten
         if (ret != 0)
         {
             throw new Exception($"Failed to mount FetchFS file at {path}: {ret}");
+        }
+    }
+
+    public static void MountFetchDir(int id, string path)
+    {
+        int ret = mount_fetch_dir(id, path);
+        if (ret != 0)
+        {
+            throw new Exception($"Failed to mount FetchFS directory at {path}: {ret}");
         }
     }
 }
