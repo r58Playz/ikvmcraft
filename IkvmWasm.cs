@@ -148,6 +148,7 @@ static partial class IkvmWasm
         Console.WriteLine($"[IKVM] main class: {mainClassName}");
 		java.lang.System.setProperty("org.lwjgl.util.Debug", "true");
 		java.lang.System.setProperty("org.lwjgl.util.DebugLoader", "true");
+		java.lang.System.setProperty("org.lwjgl.system.allocator", "system");
 		java.lang.System.setProperty("org.lwjgl.system.SharedLibraryExtractPath", "/tmp/lwjgl");
 		Console.WriteLine($"[LWJGL] debug: {java.lang.System.getProperty("org.lwjgl.util.Debug")}");
 		Console.WriteLine($"[LWJGL] debugloader: {java.lang.System.getProperty("org.lwjgl.util.DebugLoader")}");

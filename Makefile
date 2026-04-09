@@ -1,5 +1,5 @@
 STATICS_RELEASE=1bd54b97-34da-4bcb-befe-e28734c02187
-IKVM_RELEASE=6a303bdb-96fd-4757-8353-ffe022214a17
+IKVM_RELEASE=55d512c2-7ddd-4bb0-86aa-30aec5c8891e
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:
@@ -12,7 +12,6 @@ statics:
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/lwjgl3-mt.jar -O statics/lwjgl3.jar
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl3-mt.a -O statics/liblwjgl3.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl_stb-mt.a -O statics/liblwjgl_stb.a
-	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libjemalloc-mt.a -O statics/libjemalloc.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libffi-mt.a -O statics/libffi.a
 	unzip -q -o statics/emsdk.zip -d statics/
 
