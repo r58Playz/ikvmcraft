@@ -1,5 +1,5 @@
 STATICS_RELEASE=1bd54b97-34da-4bcb-befe-e28734c02187
-IKVM_RELEASE=55d512c2-7ddd-4bb0-86aa-30aec5c8891e
+IKVM_RELEASE=005b5454-8a9d-4edc-89e4-1865ba9033fe
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:
@@ -30,8 +30,6 @@ build: deps
 	cp -r bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
 	cp statics/lwjgl3.jar frontend/public/assets/
-	# emscripten sucks
-	sed -i 's/var offscreenCanvases \?= \?{};/var offscreenCanvases={};if(globalThis.window\&\&!window.TRANSFERRED_CANVAS){transferredCanvasNames=[".canvas"];window.TRANSFERRED_CANVAS=true;}/' frontend/public/_framework/dotnet.native.*.js
 	# dotnet messed up
 	sed -i 's/this.appendULeb(32768)/this.appendULeb(65535)/' frontend/public/_framework/dotnet.runtime.*.js
 

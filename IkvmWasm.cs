@@ -65,6 +65,16 @@ static partial class IkvmWasm
 	static internal extern void wasm_icall_viiiiiiiil(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, long k);
 	[DllImport("Emscripten")]
 	static internal extern void wasm_icall_viiiill(int a, int b, int c, int d, long e, long f);
+	[DllImport("Emscripten")]
+	static internal extern void wasm_icall_viiilli(int a, int b, int c, long d, long e, int f);
+	[DllImport("Emscripten")]
+	static internal extern void wasm_icall_viiiiiiiiiiii(int a, int b, int c, int d, int e, int f, int g, int h, int i, int j, int k, int l);
+	[DllImport("Emscripten")]
+	static internal extern void wasm_icall_viiiiiil(int a, int b, int c, int d, int e, int f, long g);
+	[DllImport("Emscripten")]
+	static internal extern void wasm_icall_viiilll(int a, int b, int c, long d, long e, long f);
+	[DllImport("Emscripten")]
+	static internal extern void wasm_icall_viiiiill(int a, int b, int c, int d, int e, long f, long g);
 
 	[DllImport("Emscripten")]
 	static internal extern void mg_init();

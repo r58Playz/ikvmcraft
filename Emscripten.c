@@ -7,8 +7,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-const char *malloc_conf = "abort_conf:false";
-
 extern void mobileglues_proc_init();
 void mg_init() {
 	setenv("MG_DIR_PATH", "/mobileglues", true);
@@ -82,6 +80,12 @@ void wasm_icall_viillllll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64
 uint64_t wasm_icall_liilillli(uint32_t a, uint32_t b, uint64_t c, uint32_t d, uint64_t e, uint64_t f, uint64_t g, uint32_t h) { return 0; }
 void wasm_icall_viiiiiiiil(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint64_t k) {}
 void wasm_icall_viiiill(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint64_t e, uint64_t f) {}
+void wasm_icall_viiilli(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint64_t e, uint32_t f) {}
+void wasm_icall_viiiiiiiiiiii(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint32_t g, uint32_t h, uint32_t i, uint32_t j, uint32_t k, uint32_t l) {}
+void wasm_icall_viiiiiil(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint64_t g) {}
+void wasm_icall_viiilll(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint64_t e, uint64_t f) {}
+void wasm_icall_viiiiill(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint64_t f, uint64_t g) {}
+
 
 void mono_threads_request_thread_dump (void);
 EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {

@@ -35,7 +35,7 @@
 		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
 
 		<!-- MAXIMUM_MEMORY is 4GiB - 1 wasm page (64kib) -->
-		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT</EmccExtraLDFlags>
+		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=dlmalloc -sOFFSCREENCANVAS_SUPPORT -sOFFSCREEN_FRAMEBUFFER</EmccExtraLDFlags>
 		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
 		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/statics/lib_emscripten_glfw3.js</EmccExtraLDFlags>
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
