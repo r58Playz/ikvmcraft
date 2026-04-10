@@ -85,7 +85,8 @@ void wasm_icall_viiiiiiiiiiii(uint32_t a, uint32_t b, uint32_t c, uint32_t d, ui
 void wasm_icall_viiiiiil(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f, uint64_t g) {}
 void wasm_icall_viiilll(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint64_t e, uint64_t f) {}
 void wasm_icall_viiiiill(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint64_t f, uint64_t g) {}
-
+void wasm_icall_viiililil(uint32_t a, uint32_t b, uint32_t c, uint64_t d, uint32_t e, uint64_t f, uint32_t g, uint64_t h) {}
+void wasm_icall_viilll(uint32_t a, uint32_t b, uint64_t c, uint64_t d, uint64_t e) {}
 
 void mono_threads_request_thread_dump (void);
 EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {
