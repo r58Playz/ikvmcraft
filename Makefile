@@ -1,5 +1,5 @@
 STATICS_RELEASE=1bd54b97-34da-4bcb-befe-e28734c02187
-IKVM_RELEASE=73250f6d-f6b4-4e30-88f0-41faacae0db1
+IKVM_RELEASE=63dbf70c-8183-407a-b28c-d0b339d9a32a
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:

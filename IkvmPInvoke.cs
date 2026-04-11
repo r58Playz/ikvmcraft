@@ -21,11 +21,6 @@ internal unsafe static class LibJvm
         [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string message);
 
-	/* win32 only. :frowning2:
-    [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr JVM_GetThreadInterruptEvent();
-	*/
-
     [DllImport(Name, CallingConvention = CallingConvention.Cdecl)]
     public static extern int JVM_ActiveProcessorCount();
 

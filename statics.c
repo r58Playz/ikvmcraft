@@ -129,68 +129,68 @@ extern void Java_java_lang_System_setIn0();
 extern void Java_java_lang_System_setOut0();
 extern void fillI18nProps();
 extern void Java_java_lang_reflect_Proxy_defineClass0();
-extern void __j__ieee754_acos();
-extern void __j__ieee754_asin();
-extern void __j__ieee754_atan2();
-extern void __j__ieee754_atanh();
-extern void __j__ieee754_cosh();
-extern void __j__ieee754_exp();
-extern void __j__ieee754_fmod();
-extern void __j__ieee754_hypot();
-extern void __j__ieee754_log10();
-extern void __j__ieee754_log();
-extern void __j__ieee754_pow();
-extern void __j__ieee754_remainder();
-extern void __j__ieee754_rem_pio2();
-extern void __j__ieee754_scalb();
-extern void __j__ieee754_sinh();
-extern void __j__ieee754_sqrt();
-extern void __j__kernel_cos();
-extern void __j__kernel_rem_pio2();
-extern void __j__kernel_sin();
-extern void __j__kernel_standard();
-extern void __j__kernel_tan();
-extern void jatan();
-extern void jcbrt();
-extern void jceil();
-extern void copysign();
-extern void jcos();
-extern void jexpm1();
-extern void jfabs();
-extern void finite();
-extern void jfloor();
-extern void frexp();
-extern void ilogb();
-extern void isnan();
-extern void ldexp();
-extern char _fdlib_version;
-extern void jlog1p();
-extern void logb();
-extern void matherr();
-extern void modf();
-extern void nextafter();
-extern void rint();
-extern void scalbn();
-extern char signgam;
-extern void significand();
-extern void jsin();
-extern void jtan();
-extern void jtanh();
-extern void jacos();
-extern void jasin();
-extern void jatan2();
-extern void atanh();
-extern void jcosh();
-extern void jexp();
-extern void jmod();
-extern void jhypot();
-extern void jlog10();
-extern void jlog();
-extern void jpow();
-extern void jremainder();
-extern void scalb();
-extern void jsinh();
-extern void jsqrt();
+extern void fdlibm___j__ieee754_acos();
+extern void fdlibm___j__ieee754_asin();
+extern void fdlibm___j__ieee754_atan2();
+extern void fdlibm___j__ieee754_atanh();
+extern void fdlibm___j__ieee754_cosh();
+extern void fdlibm___j__ieee754_exp();
+extern void fdlibm___j__ieee754_fmod();
+extern void fdlibm___j__ieee754_hypot();
+extern void fdlibm___j__ieee754_log10();
+extern void fdlibm___j__ieee754_log();
+extern void fdlibm___j__ieee754_pow();
+extern void fdlibm___j__ieee754_remainder();
+extern void fdlibm___j__ieee754_rem_pio2();
+extern void fdlibm___j__ieee754_scalb();
+extern void fdlibm___j__ieee754_sinh();
+extern void fdlibm___j__ieee754_sqrt();
+extern void fdlibm___j__kernel_cos();
+extern void fdlibm___j__kernel_rem_pio2();
+extern void fdlibm___j__kernel_sin();
+extern void fdlibm___j__kernel_standard();
+extern void fdlibm___j__kernel_tan();
+extern void fdlibm_jatan();
+extern void fdlibm_jcbrt();
+extern void fdlibm_jceil();
+extern void fdlibm_copysign();
+extern void fdlibm_jcos();
+extern void fdlibm_jexpm1();
+extern void fdlibm_jfabs();
+extern void fdlibm_finite();
+extern void fdlibm_jfloor();
+extern void fdlibm_frexp();
+extern void fdlibm_ilogb();
+extern void fdlibm_isnan();
+extern void fdlibm_ldexp();
+extern char fdlibm__fdlib_version;
+extern void fdlibm_jlog1p();
+extern void fdlibm_logb();
+extern void fdlibm_matherr();
+extern void fdlibm_modf();
+extern void fdlibm_nextafter();
+extern void fdlibm_rint();
+extern void fdlibm_scalbn();
+extern char fdlibm_signgam;
+extern void fdlibm_significand();
+extern void fdlibm_jsin();
+extern void fdlibm_jtan();
+extern void fdlibm_jtanh();
+extern void fdlibm_jacos();
+extern void fdlibm_jasin();
+extern void fdlibm_jatan2();
+extern void fdlibm_atanh();
+extern void fdlibm_jcosh();
+extern void fdlibm_jexp();
+extern void fdlibm_jmod();
+extern void fdlibm_jhypot();
+extern void fdlibm_jlog10();
+extern void fdlibm_jlog();
+extern void fdlibm_jpow();
+extern void fdlibm_jremainder();
+extern void fdlibm_scalb();
+extern void fdlibm_jsinh();
+extern void fdlibm_jsqrt();
 extern void Java_java_io_FileInputStream_available0();
 extern void Java_java_io_FileInputStream_initIDs();
 extern void Java_java_io_FileInputStream_open0();
@@ -7002,6 +7002,7 @@ extern void mobileglues_glDeformationMap3dSGIX();
 extern void mobileglues_glDeformationMap3fSGIX();
 extern void mobileglues_glDeleteAsyncMarkersSGIX();
 extern void mobileglues_glDeleteBuffers();
+extern void mobileglues_glDeleteBuffersARB();
 extern void mobileglues_glDeleteCommandListsNV();
 extern void mobileglues_glDeleteFencesAPPLE();
 extern void mobileglues_glDeleteFencesNV();
@@ -7247,6 +7248,7 @@ extern void mobileglues_glFrustumfOES();
 extern void mobileglues_glFrustumxOES();
 extern void mobileglues_glGenAsyncMarkersSGIX();
 extern void mobileglues_glGenBuffers();
+extern void mobileglues_glGenBuffersARB();
 extern void mobileglues_glGenFencesAPPLE();
 extern void mobileglues_glGenFencesNV();
 extern void mobileglues_glGenFragmentShadersATI();
@@ -7778,6 +7780,7 @@ extern void mobileglues_glInvalidateTexImage();
 extern void mobileglues_glInvalidateTexSubImage();
 extern void mobileglues_glIsAsyncMarkerSGIX();
 extern void mobileglues_glIsBuffer();
+extern void mobileglues_glIsBufferARB();
 extern void mobileglues_glIsBufferResidentNV();
 extern void mobileglues_glIsCommandListNV();
 extern void mobileglues_glIsEnabled();
@@ -9983,68 +9986,68 @@ static const jvm_symbol_entry_t _syms_libiava_so[] = {
     { "Java_java_lang_System_setOut0", (void*)Java_java_lang_System_setOut0 },
     { "fillI18nProps", (void*)fillI18nProps },
     { "Java_java_lang_reflect_Proxy_defineClass0", (void*)Java_java_lang_reflect_Proxy_defineClass0 },
-    { "__j__ieee754_acos", (void*)__j__ieee754_acos },
-    { "__j__ieee754_asin", (void*)__j__ieee754_asin },
-    { "__j__ieee754_atan2", (void*)__j__ieee754_atan2 },
-    { "__j__ieee754_atanh", (void*)__j__ieee754_atanh },
-    { "__j__ieee754_cosh", (void*)__j__ieee754_cosh },
-    { "__j__ieee754_exp", (void*)__j__ieee754_exp },
-    { "__j__ieee754_fmod", (void*)__j__ieee754_fmod },
-    { "__j__ieee754_hypot", (void*)__j__ieee754_hypot },
-    { "__j__ieee754_log10", (void*)__j__ieee754_log10 },
-    { "__j__ieee754_log", (void*)__j__ieee754_log },
-    { "__j__ieee754_pow", (void*)__j__ieee754_pow },
-    { "__j__ieee754_remainder", (void*)__j__ieee754_remainder },
-    { "__j__ieee754_rem_pio2", (void*)__j__ieee754_rem_pio2 },
-    { "__j__ieee754_scalb", (void*)__j__ieee754_scalb },
-    { "__j__ieee754_sinh", (void*)__j__ieee754_sinh },
-    { "__j__ieee754_sqrt", (void*)__j__ieee754_sqrt },
-    { "__j__kernel_cos", (void*)__j__kernel_cos },
-    { "__j__kernel_rem_pio2", (void*)__j__kernel_rem_pio2 },
-    { "__j__kernel_sin", (void*)__j__kernel_sin },
-    { "__j__kernel_standard", (void*)__j__kernel_standard },
-    { "__j__kernel_tan", (void*)__j__kernel_tan },
-    { "jatan", (void*)jatan },
-    { "jcbrt", (void*)jcbrt },
-    { "jceil", (void*)jceil },
-    { "copysign", (void*)copysign },
-    { "jcos", (void*)jcos },
-    { "jexpm1", (void*)jexpm1 },
-    { "jfabs", (void*)jfabs },
-    { "finite", (void*)finite },
-    { "jfloor", (void*)jfloor },
-    { "frexp", (void*)frexp },
-    { "ilogb", (void*)ilogb },
-    { "isnan", (void*)isnan },
-    { "ldexp", (void*)ldexp },
-    { "_fdlib_version", (void*)&_fdlib_version },
-    { "jlog1p", (void*)jlog1p },
-    { "logb", (void*)logb },
-    { "matherr", (void*)matherr },
-    { "modf", (void*)modf },
-    { "nextafter", (void*)nextafter },
-    { "rint", (void*)rint },
-    { "scalbn", (void*)scalbn },
-    { "signgam", (void*)&signgam },
-    { "significand", (void*)significand },
-    { "jsin", (void*)jsin },
-    { "jtan", (void*)jtan },
-    { "jtanh", (void*)jtanh },
-    { "jacos", (void*)jacos },
-    { "jasin", (void*)jasin },
-    { "jatan2", (void*)jatan2 },
-    { "atanh", (void*)atanh },
-    { "jcosh", (void*)jcosh },
-    { "jexp", (void*)jexp },
-    { "jmod", (void*)jmod },
-    { "jhypot", (void*)jhypot },
-    { "jlog10", (void*)jlog10 },
-    { "jlog", (void*)jlog },
-    { "jpow", (void*)jpow },
-    { "jremainder", (void*)jremainder },
-    { "scalb", (void*)scalb },
-    { "jsinh", (void*)jsinh },
-    { "jsqrt", (void*)jsqrt },
+    { "fdlibm___j__ieee754_acos", (void*)fdlibm___j__ieee754_acos },
+    { "fdlibm___j__ieee754_asin", (void*)fdlibm___j__ieee754_asin },
+    { "fdlibm___j__ieee754_atan2", (void*)fdlibm___j__ieee754_atan2 },
+    { "fdlibm___j__ieee754_atanh", (void*)fdlibm___j__ieee754_atanh },
+    { "fdlibm___j__ieee754_cosh", (void*)fdlibm___j__ieee754_cosh },
+    { "fdlibm___j__ieee754_exp", (void*)fdlibm___j__ieee754_exp },
+    { "fdlibm___j__ieee754_fmod", (void*)fdlibm___j__ieee754_fmod },
+    { "fdlibm___j__ieee754_hypot", (void*)fdlibm___j__ieee754_hypot },
+    { "fdlibm___j__ieee754_log10", (void*)fdlibm___j__ieee754_log10 },
+    { "fdlibm___j__ieee754_log", (void*)fdlibm___j__ieee754_log },
+    { "fdlibm___j__ieee754_pow", (void*)fdlibm___j__ieee754_pow },
+    { "fdlibm___j__ieee754_remainder", (void*)fdlibm___j__ieee754_remainder },
+    { "fdlibm___j__ieee754_rem_pio2", (void*)fdlibm___j__ieee754_rem_pio2 },
+    { "fdlibm___j__ieee754_scalb", (void*)fdlibm___j__ieee754_scalb },
+    { "fdlibm___j__ieee754_sinh", (void*)fdlibm___j__ieee754_sinh },
+    { "fdlibm___j__ieee754_sqrt", (void*)fdlibm___j__ieee754_sqrt },
+    { "fdlibm___j__kernel_cos", (void*)fdlibm___j__kernel_cos },
+    { "fdlibm___j__kernel_rem_pio2", (void*)fdlibm___j__kernel_rem_pio2 },
+    { "fdlibm___j__kernel_sin", (void*)fdlibm___j__kernel_sin },
+    { "fdlibm___j__kernel_standard", (void*)fdlibm___j__kernel_standard },
+    { "fdlibm___j__kernel_tan", (void*)fdlibm___j__kernel_tan },
+    { "fdlibm_jatan", (void*)fdlibm_jatan },
+    { "fdlibm_jcbrt", (void*)fdlibm_jcbrt },
+    { "fdlibm_jceil", (void*)fdlibm_jceil },
+    { "fdlibm_copysign", (void*)fdlibm_copysign },
+    { "fdlibm_jcos", (void*)fdlibm_jcos },
+    { "fdlibm_jexpm1", (void*)fdlibm_jexpm1 },
+    { "fdlibm_jfabs", (void*)fdlibm_jfabs },
+    { "fdlibm_finite", (void*)fdlibm_finite },
+    { "fdlibm_jfloor", (void*)fdlibm_jfloor },
+    { "fdlibm_frexp", (void*)fdlibm_frexp },
+    { "fdlibm_ilogb", (void*)fdlibm_ilogb },
+    { "fdlibm_isnan", (void*)fdlibm_isnan },
+    { "fdlibm_ldexp", (void*)fdlibm_ldexp },
+    { "fdlibm__fdlib_version", (void*)&fdlibm__fdlib_version },
+    { "fdlibm_jlog1p", (void*)fdlibm_jlog1p },
+    { "fdlibm_logb", (void*)fdlibm_logb },
+    { "fdlibm_matherr", (void*)fdlibm_matherr },
+    { "fdlibm_modf", (void*)fdlibm_modf },
+    { "fdlibm_nextafter", (void*)fdlibm_nextafter },
+    { "fdlibm_rint", (void*)fdlibm_rint },
+    { "fdlibm_scalbn", (void*)fdlibm_scalbn },
+    { "fdlibm_signgam", (void*)&fdlibm_signgam },
+    { "fdlibm_significand", (void*)fdlibm_significand },
+    { "fdlibm_jsin", (void*)fdlibm_jsin },
+    { "fdlibm_jtan", (void*)fdlibm_jtan },
+    { "fdlibm_jtanh", (void*)fdlibm_jtanh },
+    { "fdlibm_jacos", (void*)fdlibm_jacos },
+    { "fdlibm_jasin", (void*)fdlibm_jasin },
+    { "fdlibm_jatan2", (void*)fdlibm_jatan2 },
+    { "fdlibm_atanh", (void*)fdlibm_atanh },
+    { "fdlibm_jcosh", (void*)fdlibm_jcosh },
+    { "fdlibm_jexp", (void*)fdlibm_jexp },
+    { "fdlibm_jmod", (void*)fdlibm_jmod },
+    { "fdlibm_jhypot", (void*)fdlibm_jhypot },
+    { "fdlibm_jlog10", (void*)fdlibm_jlog10 },
+    { "fdlibm_jlog", (void*)fdlibm_jlog },
+    { "fdlibm_jpow", (void*)fdlibm_jpow },
+    { "fdlibm_jremainder", (void*)fdlibm_jremainder },
+    { "fdlibm_scalb", (void*)fdlibm_scalb },
+    { "fdlibm_jsinh", (void*)fdlibm_jsinh },
+    { "fdlibm_jsqrt", (void*)fdlibm_jsqrt },
     { "Java_java_io_FileInputStream_available0", (void*)Java_java_io_FileInputStream_available0 },
     { "Java_java_io_FileInputStream_initIDs", (void*)Java_java_io_FileInputStream_initIDs },
     { "Java_java_io_FileInputStream_open0", (void*)Java_java_io_FileInputStream_open0 },
@@ -13752,7 +13755,7 @@ static const jvm_symbol_entry_t _syms_liblwjgl_so[] = {
     { NULL, NULL }  /* sentinel */
 };
 
-/* Symbol table for "/tmp/lwjgl/libglfw.so" (5783 symbols) */
+/* Symbol table for "/tmp/lwjgl/libglfw.so" (5786 symbols) */
 static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "AppendExtension", (void*)AppendExtension },
     { "DEFAULT_MG_DIRECTORY_PATH", (void*)&DEFAULT_MG_DIRECTORY_PATH },
@@ -16881,6 +16884,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "mobileglues_glDeformationMap3fSGIX", (void*)mobileglues_glDeformationMap3fSGIX },
     { "mobileglues_glDeleteAsyncMarkersSGIX", (void*)mobileglues_glDeleteAsyncMarkersSGIX },
     { "mobileglues_glDeleteBuffers", (void*)mobileglues_glDeleteBuffers },
+    { "mobileglues_glDeleteBuffersARB", (void*)mobileglues_glDeleteBuffersARB },
     { "mobileglues_glDeleteCommandListsNV", (void*)mobileglues_glDeleteCommandListsNV },
     { "mobileglues_glDeleteFencesAPPLE", (void*)mobileglues_glDeleteFencesAPPLE },
     { "mobileglues_glDeleteFencesNV", (void*)mobileglues_glDeleteFencesNV },
@@ -17126,6 +17130,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "mobileglues_glFrustumxOES", (void*)mobileglues_glFrustumxOES },
     { "mobileglues_glGenAsyncMarkersSGIX", (void*)mobileglues_glGenAsyncMarkersSGIX },
     { "mobileglues_glGenBuffers", (void*)mobileglues_glGenBuffers },
+    { "mobileglues_glGenBuffersARB", (void*)mobileglues_glGenBuffersARB },
     { "mobileglues_glGenFencesAPPLE", (void*)mobileglues_glGenFencesAPPLE },
     { "mobileglues_glGenFencesNV", (void*)mobileglues_glGenFencesNV },
     { "mobileglues_glGenFragmentShadersATI", (void*)mobileglues_glGenFragmentShadersATI },
@@ -17657,6 +17662,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "mobileglues_glInvalidateTexSubImage", (void*)mobileglues_glInvalidateTexSubImage },
     { "mobileglues_glIsAsyncMarkerSGIX", (void*)mobileglues_glIsAsyncMarkerSGIX },
     { "mobileglues_glIsBuffer", (void*)mobileglues_glIsBuffer },
+    { "mobileglues_glIsBufferARB", (void*)mobileglues_glIsBufferARB },
     { "mobileglues_glIsBufferResidentNV", (void*)mobileglues_glIsBufferResidentNV },
     { "mobileglues_glIsCommandListNV", (void*)mobileglues_glIsCommandListNV },
     { "mobileglues_glIsEnabled", (void*)mobileglues_glIsEnabled },

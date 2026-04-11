@@ -14,7 +14,7 @@
 		<CompressionEnabled>false</CompressionEnabled>
 		<PublishTrimmed>false</PublishTrimmed>
 		<TrimMode>partial</TrimMode>
-		<RunAOTCompilation>false</RunAOTCompilation>
+		<RunAOTCompilation>true</RunAOTCompilation>
 		<WasmDedup>false</WasmDedup>
 		<WasmStripILAfterAOT>false</WasmStripILAfterAOT>
 
@@ -26,7 +26,7 @@
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>false</WasmRunWasmOpt>
+		<WasmRunWasmOpt>true</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
