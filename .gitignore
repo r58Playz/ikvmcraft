@@ -3,3 +3,5 @@
 /statics
 /emsdk
 /frontend/public/image
+/jars/*.dll
+/jars/*.pdb

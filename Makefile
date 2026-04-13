@@ -1,5 +1,5 @@
 STATICS_RELEASE=1bd54b97-34da-4bcb-befe-e28734c02187
-IKVM_RELEASE=63dbf70c-8183-407a-b28c-d0b339d9a32a
+IKVM_RELEASE=4bed79d3-f4aa-4dc1-a87e-153c4067256f
 DOTNETFLAGS=--nodereuse:false -v n
 
 statics:
@@ -15,21 +15,17 @@ statics:
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libffi-mt.a -O statics/libffi.a
 	unzip -q -o statics/emsdk.zip -d statics/
 
-dotnetclean:
-	rm -rvf {bin,obj} || true
-clean: dotnetclean
-	rm -rvf statics || true
-
 deps: statics
 
 build: deps
 	rm -r statics/{dotnet,ikvm} frontend/public/{_framework,ikvm} bin/Release/net10.0/publish/wwwroot/_framework || true
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
+	bash ikvmc.sh statics/lwjgl3.jar statics/ikvmc_lwjgl3.dll
+	bash ikvmc.sh jars/joml-1.10.8.jar jars/ikvmc_joml.dll 
 	dotnet publish -c Release $(DOTNETFLAGS)
 	cp -r bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
-	cp statics/lwjgl3.jar frontend/public/assets/
 	# dotnet messed up
 	sed -i 's/this.appendULeb(32768)/this.appendULeb(65535)/' frontend/public/_framework/dotnet.runtime.*.js
 
@@ -39,4 +35,7 @@ serve: build
 publish: build
 	cd frontend && pnpm build
 
-.PHONY: clean build serve publish testjar
+dotnetclean:
+	rm -rvf {bin,obj} || true
+clean: dotnetclean
+	rm -rvf statics || true

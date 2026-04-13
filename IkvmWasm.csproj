@@ -63,6 +63,9 @@
 		<AOTWhitelist Include="IKVM.ByteCode" />
 		<AOTWhitelist Include="IKVM.CoreLib" />
 		<AOTWhitelist Include="IKVM.Runtime" />
+
+		<AOTWhitelist Include="ikvmc_lwjgl3" />
+		<AOTWhitelist Include="ikvmc_joml" />
 	</ItemGroup>
 
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
@@ -100,6 +103,7 @@
 		<NativeFileReference Include="statics\ikvm\libnet.a" />
 		<NativeFileReference Include="Emscripten.c" />
 		<NativeFileReference Include="statics.c" />
+		<NativeFileReference Include="icalls.c" />
 
 		<NativeFileReference Include="statics\libglfw3.a" />
 		<NativeFileReference Include="statics\liblwjgl3.a" />
@@ -108,7 +112,6 @@
 
 		<!-- trick mono wasm into letting the load through -->
 		<_WasmPInvokeModules Include="/ikvm/bin/libjvm.so" />
-		<_WasmPInvokeModules Include="/tmp/liblwjgl.so" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -117,6 +120,9 @@
 		<Reference Include="statics\ikvm\IKVM.Java.dll" />
 		<Reference Include="statics\ikvm\IKVM.Runtime.dll" />
 		<PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.3" />
+
+		<Reference Include="statics\ikvmc_lwjgl3.dll" />
+		<Reference Include="jars\ikvmc_joml.dll" />
 
 		<None Remove="statics\**" />
 		<Compile Remove="statics\**" />

@@ -3918,7 +3918,7 @@ extern void _Z10getGpuNamev();
 extern void _Z11getGLESNamev();
 extern void _Z11init_configv();
 extern void _Z12DeleteLinkerP13TShHandleBase();
-extern void _Z12GLSLtoGLSLESPKcjjjRi();
+extern void _Z12GLSLtoGLSLESPKcjjj();
 extern void _Z12GetTexTargetj();
 extern void _Z12pixel_sizeofjj();
 extern void _Z12set_hardwarev();
@@ -3931,8 +3931,6 @@ extern void _Z13init_settingsv();
 extern void _Z13pixel_convertPKvPPvjjjjjjjj();
 extern void _Z13spirv_to_esslNSt3__26vectorIjNS_9allocatorIjEEEEjRi();
 extern void _Z14DeleteCompilerP9TCompiler();
-extern void _Z14GLSLtoGLSLES_1PKcjjRi();
-extern void _Z14GLSLtoGLSLES_2PKcjjRi();
 extern void _Z14GetTextureUniti();
 extern void _Z14InitTextureMapm();
 extern void _Z14RecreateFSRFBOv();
@@ -3943,7 +3941,7 @@ extern void _Z14prepareForDrawv();
 extern void _Z15ConstructLinker13EShExecutablei();
 extern void _Z15GetBindingQueryjb();
 extern void _Z15get_framebufferj();
-extern void _Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjPb();
+extern void _Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjRbRNS_6vectorIS5_NS3_IS5_EEEE();
 extern void _Z16CompileFSRShaderv();
 extern void _Z16DeleteUniformMapP11TUniformMap();
 extern void _Z16InitFSRResourcesv();
@@ -3978,7 +3976,7 @@ extern void _Z21set_multidraw_settingv();
 extern void _Z21temporarilyBindBufferjj();
 extern void _Z22ensure_max_attachmentsv();
 extern void _Z22mgGetTexObjectByTargetj();
-extern void _Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE();
+extern void _Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEERNS_6vectorIS5_NS3_IS5_EEEE();
 extern void _Z22temporarilyBindTexturejj();
 extern void _Z22update_vao_ibo_bindingjj();
 extern void _Z23GenerateDefaultFSSourcev();
@@ -4004,7 +4002,6 @@ extern void _Z27temporarilyBindRenderbufferj();
 extern void _Z28ConvertGLEnumToTextureTargetj();
 extern void _Z28ConvertTextureTargetToGLEnum13TextureTarget();
 extern void _Z28MarkTextureObjectForDeletionj();
-extern void _Z28check_if_sampler_buffer_usedNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE();
 extern void _Z28process_uniform_declarationsRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE();
 extern void _Z29restoreTemporaryBufferBindingj();
 extern void _Z30restoreTemporaryTextureBindingjj();
@@ -6598,6 +6595,7 @@ extern char license;
 extern void load_libs();
 extern char log_file_path;
 extern void map_tex_target();
+extern void mgReadBufferSubData();
 extern char mg_directory_path;
 extern void mg_glMultiDrawElementsBaseVertex_basevertex();
 extern void mg_glMultiDrawElementsBaseVertex_compute();
@@ -9474,7 +9472,7 @@ extern void pname_convert();
 extern void proc_address();
 extern void proc_init();
 extern char program_map_is_atomic_counter_emulated;
-extern char program_map_is_sampler_buffer_emulated;
+extern char program_map_sampler_buffer_emulations;
 extern char program_map_should_generate_fs;
 extern void remove_array();
 extern void remove_buffer();
@@ -9487,7 +9485,7 @@ extern void set_gl_state_proxy_intformat();
 extern void set_gl_state_proxy_width();
 extern char shaderInfo;
 extern char shader_map_is_atomic_counter_emulated;
-extern char shader_map_is_sampler_buffer_emulated;
+extern char shader_map_sampler_buffer_emulations;
 extern void spvc_compiler_add_header_line();
 extern void spvc_compiler_buffer_get_hlsl_counter_buffer();
 extern void spvc_compiler_buffer_is_hlsl_counter_buffer();
@@ -13755,7 +13753,7 @@ static const jvm_symbol_entry_t _syms_liblwjgl_so[] = {
     { NULL, NULL }  /* sentinel */
 };
 
-/* Symbol table for "/tmp/lwjgl/libglfw.so" (5786 symbols) */
+/* Symbol table for "/tmp/lwjgl/libglfw.so" (5784 symbols) */
 static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "AppendExtension", (void*)AppendExtension },
     { "DEFAULT_MG_DIRECTORY_PATH", (void*)&DEFAULT_MG_DIRECTORY_PATH },
@@ -13800,7 +13798,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_Z11getGLESNamev", (void*)_Z11getGLESNamev },
     { "_Z11init_configv", (void*)_Z11init_configv },
     { "_Z12DeleteLinkerP13TShHandleBase", (void*)_Z12DeleteLinkerP13TShHandleBase },
-    { "_Z12GLSLtoGLSLESPKcjjjRi", (void*)_Z12GLSLtoGLSLESPKcjjjRi },
+    { "_Z12GLSLtoGLSLESPKcjjj", (void*)_Z12GLSLtoGLSLESPKcjjj },
     { "_Z12GetTexTargetj", (void*)_Z12GetTexTargetj },
     { "_Z12pixel_sizeofjj", (void*)_Z12pixel_sizeofjj },
     { "_Z12set_hardwarev", (void*)_Z12set_hardwarev },
@@ -13813,8 +13811,6 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_Z13pixel_convertPKvPPvjjjjjjjj", (void*)_Z13pixel_convertPKvPPvjjjjjjjj },
     { "_Z13spirv_to_esslNSt3__26vectorIjNS_9allocatorIjEEEEjRi", (void*)_Z13spirv_to_esslNSt3__26vectorIjNS_9allocatorIjEEEEjRi },
     { "_Z14DeleteCompilerP9TCompiler", (void*)_Z14DeleteCompilerP9TCompiler },
-    { "_Z14GLSLtoGLSLES_1PKcjjRi", (void*)_Z14GLSLtoGLSLES_1PKcjjRi },
-    { "_Z14GLSLtoGLSLES_2PKcjjRi", (void*)_Z14GLSLtoGLSLES_2PKcjjRi },
     { "_Z14GetTextureUniti", (void*)_Z14GetTextureUniti },
     { "_Z14InitTextureMapm", (void*)_Z14InitTextureMapm },
     { "_Z14RecreateFSRFBOv", (void*)_Z14RecreateFSRFBOv },
@@ -13825,7 +13821,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_Z15ConstructLinker13EShExecutablei", (void*)_Z15ConstructLinker13EShExecutablei },
     { "_Z15GetBindingQueryjb", (void*)_Z15GetBindingQueryjb },
     { "_Z15get_framebufferj", (void*)_Z15get_framebufferj },
-    { "_Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjPb", (void*)_Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjPb },
+    { "_Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjRbRNS_6vectorIS5_NS3_IS5_EEEE", (void*)_Z15preprocess_glslRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEEjRbRNS_6vectorIS5_NS3_IS5_EEEE },
     { "_Z16CompileFSRShaderv", (void*)_Z16CompileFSRShaderv },
     { "_Z16DeleteUniformMapP11TUniformMap", (void*)_Z16DeleteUniformMapP11TUniformMap },
     { "_Z16InitFSRResourcesv", (void*)_Z16InitFSRResourcesv },
@@ -13860,7 +13856,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_Z21temporarilyBindBufferjj", (void*)_Z21temporarilyBindBufferjj },
     { "_Z22ensure_max_attachmentsv", (void*)_Z22ensure_max_attachmentsv },
     { "_Z22mgGetTexObjectByTargetj", (void*)_Z22mgGetTexObjectByTargetj },
-    { "_Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE", (void*)_Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE },
+    { "_Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEERNS_6vectorIS5_NS3_IS5_EEEE", (void*)_Z22process_sampler_bufferRNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEERNS_6vectorIS5_NS3_IS5_EEEE },
     { "_Z22temporarilyBindTexturejj", (void*)_Z22temporarilyBindTexturejj },
     { "_Z22update_vao_ibo_bindingjj", (void*)_Z22update_vao_ibo_bindingjj },
     { "_Z23GenerateDefaultFSSourcev", (void*)_Z23GenerateDefaultFSSourcev },
@@ -13886,7 +13882,6 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_Z28ConvertGLEnumToTextureTargetj", (void*)_Z28ConvertGLEnumToTextureTargetj },
     { "_Z28ConvertTextureTargetToGLEnum13TextureTarget", (void*)_Z28ConvertTextureTargetToGLEnum13TextureTarget },
     { "_Z28MarkTextureObjectForDeletionj", (void*)_Z28MarkTextureObjectForDeletionj },
-    { "_Z28check_if_sampler_buffer_usedNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE", (void*)_Z28check_if_sampler_buffer_usedNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE },
     { "_Z28process_uniform_declarationsRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE", (void*)_Z28process_uniform_declarationsRKNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE },
     { "_Z29restoreTemporaryBufferBindingj", (void*)_Z29restoreTemporaryBufferBindingj },
     { "_Z30restoreTemporaryTextureBindingjj", (void*)_Z30restoreTemporaryTextureBindingjj },
@@ -16480,6 +16475,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "load_libs", (void*)load_libs },
     { "log_file_path", (void*)&log_file_path },
     { "map_tex_target", (void*)map_tex_target },
+    { "mgReadBufferSubData", (void*)mgReadBufferSubData },
     { "mg_directory_path", (void*)&mg_directory_path },
     { "mg_glMultiDrawElementsBaseVertex_basevertex", (void*)mg_glMultiDrawElementsBaseVertex_basevertex },
     { "mg_glMultiDrawElementsBaseVertex_compute", (void*)mg_glMultiDrawElementsBaseVertex_compute },
@@ -19356,7 +19352,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "proc_address", (void*)proc_address },
     { "proc_init", (void*)proc_init },
     { "program_map_is_atomic_counter_emulated", (void*)&program_map_is_atomic_counter_emulated },
-    { "program_map_is_sampler_buffer_emulated", (void*)&program_map_is_sampler_buffer_emulated },
+    { "program_map_sampler_buffer_emulations", (void*)&program_map_sampler_buffer_emulations },
     { "program_map_should_generate_fs", (void*)&program_map_should_generate_fs },
     { "remove_array", (void*)remove_array },
     { "remove_buffer", (void*)remove_buffer },
@@ -19369,7 +19365,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "set_gl_state_proxy_width", (void*)set_gl_state_proxy_width },
     { "shaderInfo", (void*)&shaderInfo },
     { "shader_map_is_atomic_counter_emulated", (void*)&shader_map_is_atomic_counter_emulated },
-    { "shader_map_is_sampler_buffer_emulated", (void*)&shader_map_is_sampler_buffer_emulated },
+    { "shader_map_sampler_buffer_emulations", (void*)&shader_map_sampler_buffer_emulations },
     { "spvc_compiler_add_header_line", (void*)spvc_compiler_add_header_line },
     { "spvc_compiler_buffer_get_hlsl_counter_buffer", (void*)spvc_compiler_buffer_get_hlsl_counter_buffer },
     { "spvc_compiler_buffer_is_hlsl_counter_buffer", (void*)spvc_compiler_buffer_is_hlsl_counter_buffer },

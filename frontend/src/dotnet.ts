@@ -70,7 +70,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	};
 	console.debug("PreInit...");
 	await runtime.runMain();
-	await exports.IkvmWasm.PreInit(location.href);
+	await exports.IkvmWasm.PreInit(location.href, [["org.lwjgl.util.Debug", "true"], ["renderDistanceChunks", "2"]]);
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
 }
