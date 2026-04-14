@@ -1589,6 +1589,7 @@ extern void Java_org_lwjgl_system_libffi_LibFFI_FFI_1WIN64();
 extern void Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1closure_1size();
 extern void Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1default_1abi();
 extern void Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1version_1number();
+extern void Java_org_lwjgl_system_libffi_LibFFI_nffi_1alloc_1prep_1closure();
 extern void Java_org_lwjgl_system_libffi_LibFFI_nffi_1call();
 extern void Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1alloc();
 extern void Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1free();
@@ -10719,7 +10720,7 @@ static const jvm_symbol_entry_t _syms_libnet_so[] = {
     { NULL, NULL }  /* sentinel */
 };
 
-/* Symbol table for "/tmp/lwjgl/liblwjgl.so" (3029 symbols) */
+/* Symbol table for "/tmp/lwjgl/liblwjgl.so" (3030 symbols) */
 static const jvm_symbol_entry_t _syms_liblwjgl_so[] = {
     { "JNI_OnLoad", (void*)__liblwjgl_JNI_OnLoad },
     { "JNI_OnUnload", (void*)__liblwjgl_JNI_OnUnload },
@@ -11464,6 +11465,7 @@ static const jvm_symbol_entry_t _syms_liblwjgl_so[] = {
     { "Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1closure_1size", (void*)Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1closure_1size },
     { "Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1default_1abi", (void*)Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1default_1abi },
     { "Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1version_1number", (void*)Java_org_lwjgl_system_libffi_LibFFI_ffi_1get_1version_1number },
+    { "Java_org_lwjgl_system_libffi_LibFFI_nffi_1alloc_1prep_1closure", (void*)Java_org_lwjgl_system_libffi_LibFFI_nffi_1alloc_1prep_1closure },
     { "Java_org_lwjgl_system_libffi_LibFFI_nffi_1call", (void*)Java_org_lwjgl_system_libffi_LibFFI_nffi_1call },
     { "Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1alloc", (void*)Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1alloc },
     { "Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1free", (void*)Java_org_lwjgl_system_libffi_LibFFI_nffi_1closure_1free },
