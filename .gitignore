@@ -1,7 +1,6 @@
-/bin
-/obj
+/loader/bin
+/loader/obj
 /statics
-/emsdk
 /frontend/public/image
 /jars/*.dll
 /jars/*.pdb

@@ -1,6 +1,7 @@
 STATICS_RELEASE=07f3bc2e-5f6a-4f67-abac-b1fd06590148
 IKVM_RELEASE=9cd5766c-be52-4d6d-b98b-165505680ec9
 DOTNETFLAGS=--nodereuse:false -v n
+AOT?=false
 
 statics:
 	mkdir statics
@@ -18,13 +19,15 @@ statics:
 deps: statics
 
 build: deps
-	rm -r statics/{dotnet,ikvm} frontend/public/{_framework,ikvm} bin/Release/net10.0/publish/wwwroot/_framework || true
+	rm -r statics/{dotnet,ikvm} frontend/public/{_framework,ikvm} loader/bin/Release/net10.0/publish/wwwroot/_framework || true
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
+#
 	bash ikvmc.sh statics/lwjgl3.jar statics/ikvmc_lwjgl3.dll
 	bash ikvmc.sh jars/joml-1.10.8.jar jars/ikvmc_joml.dll 
-	dotnet publish -c Release $(DOTNETFLAGS)
-	cp -r bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
+#
+	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) $(DOTNETFLAGS)
+	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
 	# dotnet messed up
 	sed -i 's/this.appendULeb(32768)/this.appendULeb(65535)/' frontend/public/_framework/dotnet.runtime.*.js
@@ -36,6 +39,6 @@ publish: build
 	cd frontend && pnpm build
 
 dotnetclean:
-	rm -rvf {bin,obj} || true
+	rm -rvf loader/{bin,obj} || true
 clean: dotnetclean
 	rm -rvf statics || true
