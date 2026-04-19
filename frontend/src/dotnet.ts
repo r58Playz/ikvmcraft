@@ -11,12 +11,20 @@ export let dotnetState = createState({
 	logs: [] as string[]
 });
 
+/*
 console.log = new Proxy(console.log, {
 	apply(target, thisArg, argArray) {
-	    dotnetState.logs = [...dotnetState.logs, argArray.join(" ")];
+		dotnetState.logs = [...dotnetState.logs, argArray.join(" ")];
 		return Reflect.apply(target, thisArg, argArray);
 	},
 })
+(globalThis as any).logs = []
+console.log = new Proxy(console.log, {
+	apply(target, thisArg, argArray) {
+		(globalThis as any).logs.push(argArray);
+	},
+})
+*/
 
 const rootFolder = await navigator.storage.getDirectory();
 (globalThis as any).selectjar = async () => {
@@ -31,12 +39,8 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.time("dotnet ");
 	runtime = await dotnet
 		.withConfig({ pthreadPoolInitialSize: 16 })
-		/*
-		.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
-		.withEnvironmentVariable("MONO_LOG_MASK", "all")
-		.withEnvironmentVariable("IKVM_DISABLE_STACKTRACE_CLEANING", "true")
-		*/
 		.withRuntimeOptions([
+			
 			// jit functions quickly and jit more functions
 			`--jiterpreter-minimum-trace-hit-count=${500}`,
 
@@ -52,6 +56,8 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 			// print jit stats
 			`--jiterpreter-stats-enabled`,
+			
+			//`--no-jiterpreter-traces-enabled`
 		])
 		.create();
 

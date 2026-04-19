@@ -36,8 +36,8 @@
 
 		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
 
-		<!-- MAXIMUM_MEMORY is 4GiB - 1 wasm page (64kib) -->
-		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=dlmalloc -sOFFSCREENCANVAS_SUPPORT -sOFFSCREEN_FRAMEBUFFER</EmccExtraLDFlags>
+		<!-- MAXIMUM_MEMORY is 65535 wasm pages -->
+		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT -sOFFSCREEN_FRAMEBUFFER</EmccExtraLDFlags>
 		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
 		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/../statics/lib_emscripten_glfw3.js</EmccExtraLDFlags>
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
@@ -68,6 +68,7 @@
 
 		<AOTWhitelist Include="ikvmc_lwjgl3" />
 		<AOTWhitelist Include="ikvmc_joml" />
+		<AOTWhitelist Include="ikvmc_log4j" />
 	</ItemGroup>
 
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
@@ -125,6 +126,7 @@
 
 		<Reference Include="..\statics\ikvmc_lwjgl3.dll" />
 		<Reference Include="..\jars\ikvmc_joml.dll" />
+		<Reference Include="..\jars\ikvmc_log4j.dll" />
 	</ItemGroup>
 
 	<!-- do not touch unless you like debugging -->

@@ -1,102 +1,18 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
-using System.Collections.Generic;
-using IKVM.Runtime;
-
-class IkvmClassLoader : java.net.URLClassLoader
-{
-    java.lang.ClassLoader SystemLoader;
-    List<(string, java.lang.ClassLoader)> DllLoaders;
-
-    public IkvmClassLoader(string[] jars, string[] dlls) 
-        : base((from jar in jars select new java.net.URL("file", "", jar)).ToArray(), null)
-    {
-        var dllLoaders = from dll in dlls select (dll, CreateAsmLoader(Assembly.Load(dll)));
-        DllLoaders = dllLoaders.ToList();
-        SystemLoader = java.lang.ClassLoader.getSystemClassLoader();
-    }
-
-    static java.lang.ClassLoader CreateAsmLoader(Assembly asm)
-    {
-        var Context = typeof(JVM).GetProperty("Context", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
-        var AssemblyClassLoaderFactory = Context.GetType().GetProperty("AssemblyClassLoaderFactory", BindingFlags.Instance | BindingFlags.Public).GetValue(Context);
-        var loader = AssemblyClassLoaderFactory.GetType().GetMethod("FromAssembly", BindingFlags.Instance | BindingFlags.Public).Invoke(AssemblyClassLoaderFactory, [asm]);
-        return (java.lang.ClassLoader)loader.GetType().GetMethod("GetJavaClassLoader", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(loader, []);
-    }
-
-    protected override java.lang.Class loadClass(string name, bool resolve)
-    {
-        lock (getClassLoadingLock(name))
-        {
-            string loadedFrom = "";
-            java.lang.Class cls = findLoadedClass(name);
-
-            if (name.StartsWith("java.") || name.StartsWith("javax.") || name.StartsWith("sun."))
-            {
-                if (cls == null)
-                    cls = SystemLoader.loadClass(name);
-                if (resolve)
-                    resolveClass(cls);
-                return cls;
-            }
-
-            if (cls == null)
-            {
-                foreach (var (dll, loader) in DllLoaders)
-                {
-                    try
-                    {
-                        cls = loader.loadClass(name);
-                        if (cls != null)
-                        {
-                            loadedFrom = $"DLL {dll}";
-                            break;
-                        }
-                    }
-                    catch (java.lang.ClassNotFoundException) { }
-                }
-            }
-
-            if (cls == null)
-            {
-                try
-                {
-                    cls = base.loadClass(name, resolve);
-                    loadedFrom = "URLClassLoader";
-					resolve = false;
-                }
-                catch (java.lang.ClassNotFoundException) { }
-            }
-
-            if (cls == null)
-            {
-                cls = SystemLoader.loadClass(name);
-                loadedFrom = "System class loader";
-            }
-
-            if (resolve)
-                resolveClass(cls);
-
-            Console.WriteLine($"[IkvmClassLoader] {name} loaded from {loadedFrom}");
-
-            return cls;
-        }
-    }
-}
 
 static partial class IkvmWasm
 {
     static string[] dlls = [
         "ikvmc_lwjgl3.dll",
-		"ikvmc_joml.dll"
+		"ikvmc_joml.dll",
+		"ikvmc_log4j.dll"
     ];
     static string[] jars = [
-		"/assets/lwjgl3-demos.jar"
+        "/assets/lwjgl3-demos.jar"
     ];
 
     [DllImport("Emscripten")]
@@ -105,6 +21,15 @@ static partial class IkvmWasm
     internal static void Main()
     {
         Console.WriteLine(":3");
+
+// Pure C# in your WASM build
+object[] arr = new object[10];
+object x = new object();
+arr[0] = x;  // does this throw?
+
+// Simulate what IKVM does
+object[] arr2 = (object[])Array.CreateInstance(typeof(object), 10);
+arr2[0] = new object();  // does this throw?
     }
 
     public static string[][] ConvertJSObjectToStringArray(JSObject jsObject)
@@ -143,6 +68,8 @@ static partial class IkvmWasm
             Emscripten.MountFetchDir(0, "/ikvm/lib");
             Emscripten.MountFetchFile(0, "/ikvm/lib/currency.data");
             Emscripten.MountFetchFile(0, "/ikvm/lib/tzdb.dat");
+            Emscripten.MountFetchFile(0, "/ikvm/lib/content-types.properties");
+            Emscripten.MountFetchFile(0, "/ikvm/lib/logging.properties");
 
             Emscripten.MountFetch(1, fetchbase + "/assets", "/assets");
             Emscripten.MountFetchFile(1, "/assets/lwjgl3-demos.jar");
@@ -151,11 +78,11 @@ static partial class IkvmWasm
             File.WriteAllText("/mobileglues/config.json", """{ "customGLVersion": 32 }""");
             mg_init();
 
-			Directory.CreateDirectory("/tmp/lwjgl");
-			File.WriteAllText("/tmp/lwjgl/liblwjgl.so", "");
-			File.WriteAllText("/tmp/lwjgl/liblwjgl_opengl.so", "");
-			File.WriteAllText("/tmp/lwjgl/libffi.so", "");
-			File.WriteAllText("/tmp/lwjgl/libglfw.so", "");
+            Directory.CreateDirectory("/tmp/lwjgl");
+            File.WriteAllText("/tmp/lwjgl/liblwjgl.so", "");
+            File.WriteAllText("/tmp/lwjgl/liblwjgl_opengl.so", "");
+            File.WriteAllText("/tmp/lwjgl/libffi.so", "");
+            File.WriteAllText("/tmp/lwjgl/libglfw.so", "");
 
             File.WriteAllText("/ikvm.properties", "ikvm.home=/ikvm");
 
@@ -182,12 +109,22 @@ static partial class IkvmWasm
     }
 
     [JSExport]
-    internal static Task Run(string jar, string mainclass)
+    internal static Task Run(string jarPath, string mainclass)
     {
         try
         {
-            Console.WriteLine($"[IKVM] running jar {jar}");
-            RunJar(jar, mainclass);
+            Console.WriteLine($"[IKVM] running mc 1.16.1");
+
+			MinecraftLauncher.LaunchVanilla(new() {
+				VersionJsonPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.json",
+				VersionJarPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.jar",
+				LibraryDirectoryPath = "/libsdl/ikvmcraft/libraries/",
+				AssetsRootPath = "/libsdl/ikvmcraft/assets/",
+				GameDirectoryPath = "/libsdl/minecraft/",
+				MinecraftOsName = "Emscripten",
+				ManagedAssemblyNames = dlls,
+			});
+
             return Task.CompletedTask;
         }
         catch (Exception e)
@@ -197,15 +134,26 @@ static partial class IkvmWasm
         }
     }
 
-    private static void RunJar(string jarPath, string mainclass)
+    [JSExport]
+    internal static Task RunJar(string jarPath, string mainclass)
     {
-        var mainClassName = mainclass == null ? GetMainClassName(jarPath) : mainclass;
-        Console.WriteLine($"[IKVM] main class: {mainClassName}");
+        try
+        {
+            Console.WriteLine($"[IKVM] running jar {jarPath}");
+            var mainClassName = mainclass == null ? GetMainClassName(jarPath) : mainclass;
+            Console.WriteLine($"[IKVM] main class: {mainClassName}");
 
-        var mainClass = java.lang.Class.forName(mainClassName, true, java.lang.Thread.currentThread().getContextClassLoader());
-        var stringArrayClass = java.lang.Class.forName("[Ljava.lang.String;");
-        var mainMethod = mainClass.getMethod("main", new[] { stringArrayClass });
-        mainMethod.invoke(null, new object[] { Array.Empty<string>() });
+            var mainClass = java.lang.Class.forName(mainClassName, true, java.lang.Thread.currentThread().getContextClassLoader());
+            var stringArrayClass = java.lang.Class.forName("[Ljava.lang.String;");
+            var mainMethod = mainClass.getMethod("main", new[] { stringArrayClass });
+            mainMethod.invoke(null, new object[] { Array.Empty<string>() });
+            return Task.CompletedTask;
+        }
+        catch (Exception e)
+        {
+            ExceptionLogging.WriteException(e, "[IKVM] Run failed");
+            return Task.FromException(e);
+        }
     }
 
     private static string GetMainClassName(string jarPath)

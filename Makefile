@@ -1,5 +1,5 @@
-STATICS_RELEASE=07f3bc2e-5f6a-4f67-abac-b1fd06590148
-IKVM_RELEASE=9cd5766c-be52-4d6d-b98b-165505680ec9
+STATICS_RELEASE=a90547f3-813f-4817-a09d-f91e3e2af923
+IKVM_RELEASE=fb321d23-ac83-4269-8215-d5e2bc649a39
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 
@@ -23,8 +23,9 @@ build: deps
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
 #
-	bash ikvmc.sh statics/lwjgl3.jar statics/ikvmc_lwjgl3.dll
-	bash ikvmc.sh jars/joml-1.10.8.jar jars/ikvmc_joml.dll 
+	bash ikvmc.sh statics/ikvmc_lwjgl3.dll statics/lwjgl3.jar
+	bash ikvmc.sh jars/ikvmc_joml.dll jars/joml-1.10.8.jar 
+	bash ikvmc.sh jars/ikvmc_log4j.dll jars/log4j-core-2.17.1.jar jars/log4j-api-2.17.1.jar
 #
 	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
