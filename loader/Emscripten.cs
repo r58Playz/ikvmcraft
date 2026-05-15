@@ -16,23 +16,35 @@ public static class Emscripten
     private static int EmLoopCallback()
     {
         bool keepGoing;
+        Exception caught = null;
         try
         {
             keepGoing = EmLoopCb();
         }
         catch (Exception ex)
         {
-            ExceptionLogging.WriteException(ex, "Error in managed_em_loop_callback");
+            caught = ex;
             keepGoing = false;
         }
 
         if (!keepGoing)
         {
-			if (!EmLoopTask.TrySetResult())
-			{
-				Console.Error.WriteLine("Failed to end EmLoopTask");
-			}
-			EmLoopTask = null;
+            var tcs = EmLoopTask;
+            EmLoopTask = null;
+            if (caught is not null)
+            {
+                if (!tcs.TrySetException(caught))
+                {
+                    Console.Error.WriteLine("Failed to fault EmLoopTask");
+                }
+            }
+            else
+            {
+                if (!tcs.TrySetResult())
+                {
+                    Console.Error.WriteLine("Failed to end EmLoopTask");
+                }
+            }
         }
 
         return keepGoing ? 1 : 0;

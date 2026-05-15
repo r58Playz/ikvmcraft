@@ -32,7 +32,22 @@ internal sealed class MinecraftLaunchOptions
 	public IReadOnlyList<string> ExtraGameArguments { get; init; } = Array.Empty<string>();
 	public IReadOnlyDictionary<string, string> ExtraLaunchVariables { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyDictionary<string, string> SystemProperties { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
-	public IReadOnlyList<string> ManagedAssemblyNames { get; init; } = Array.Empty<string>();
+	public IReadOnlyList<IkvmClassLoaderDll> ManagedAssemblyNames { get; init; } = Array.Empty<IkvmClassLoaderDll>();
+
+	/// <summary>
+	/// Raw bytecode transformers applied to every class resolved through the URL
+	/// classpath, in order. Use for full-control byte[] rewrites.
+	/// </summary>
+	public IReadOnlyList<ClassFileTransformer> ClassTransformers { get; init; } = Array.Empty<ClassFileTransformer>();
+
+	/// <summary>
+	/// ASM-based transformers. Each entry pairs a class-name filter with a
+	/// builder that wraps the downstream <c>ClassWriter</c> in a visitor chain.
+	/// Bundled ASM (ikvmc_asm.dll) is on the classpath, so visitor subclasses
+	/// can be written directly in C#.
+	/// </summary>
+	public IReadOnlyList<(Predicate<string> Filter, Func<org.objectweb.asm.ClassWriter, org.objectweb.asm.ClassVisitor> BuildVisitor)> AsmTransformers { get; init; }
+		= Array.Empty<(Predicate<string>, Func<org.objectweb.asm.ClassWriter, org.objectweb.asm.ClassVisitor>)>();
 }
 
 internal sealed class MinecraftLaunchPlan
@@ -139,15 +154,46 @@ internal static class MinecraftLauncher
 
 	public static void LaunchVanilla(MinecraftLaunchOptions options)
 	{
+		LaunchVanillaSetup(options);
+		var plan = BuildLaunchPlan(options);
+		InvokeMain(plan.MainClassName, plan.GameArguments);
+	}
+
+	/// <summary>
+	/// Set up the Minecraft classpath, native search paths, and system properties
+	/// — but do NOT call the main method. Lets external code (e.g. tests, repro
+	/// drivers) drive specific classes via Java reflection without running the
+	/// full game launch flow.
+	/// </summary>
+	public static void LaunchVanillaSetup(MinecraftLaunchOptions options)
+	{
 		if (options is null)
 		{
 			throw new ArgumentNullException(nameof(options));
 		}
 
 		var plan = BuildLaunchPlan(options);
-		var managedAssemblyNames = options.ManagedAssemblyNames?.Where((x) => !string.IsNullOrWhiteSpace(x)).ToArray() ?? [];
+		var managedAssemblyNames = options.ManagedAssemblyNames?.ToArray() ?? [];
 
-		java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(plan.ClassPathJars, managedAssemblyNames));
+		var loader = new IkvmClassLoader(plan.ClassPathJars, managedAssemblyNames);
+
+		if (options.ClassTransformers is not null)
+		{
+			foreach (var transformer in options.ClassTransformers)
+			{
+				loader.AddTransformer(transformer);
+			}
+		}
+
+		if (options.AsmTransformers is not null)
+		{
+			foreach (var (filter, buildVisitor) in options.AsmTransformers)
+			{
+				loader.AddAsmTransformer(filter, buildVisitor);
+			}
+		}
+
+		java.lang.Thread.currentThread().setContextClassLoader(loader);
 
 		SetSystemProperty("java.library.path", options.NativesDirectoryPath);
 		SetSystemProperty("org.lwjgl.system.allocator", "system");
@@ -161,8 +207,6 @@ internal static class MinecraftLauncher
 				SetSystemProperty(pair.Key, pair.Value);
 			}
 		}
-
-		InvokeMain(plan.MainClassName, plan.GameArguments);
 	}
 
 	private static string ReadAssetIndexId(JsonElement root, string versionId)

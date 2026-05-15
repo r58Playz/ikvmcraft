@@ -5,6 +5,7 @@ const DEFAULT_OPFS_ROOT_DIRECTORY = "ikvmcraft";
 const DEFAULT_MAX_CONCURRENT_ASSET_DOWNLOADS = 8;
 const DEFAULT_MAX_CONCURRENT_LIBRARY_DOWNLOADS = 8;
 const DEFAULT_MAX_CONCURRENT_ASSET_CHECKS = 16;
+const DEFAULT_SHA1_WORKER_COUNT = 4;
 const DEFAULT_MINECRAFT_OS_NAME = "linux";
 
 const DEV_PROXY_PREFIX_BY_HOST: Record<string, string> = {
@@ -118,6 +119,7 @@ export interface DownloadMinecraftVersionToOpfsResult {
 export interface IsMinecraftVersionDownloadedOptions {
 	opfsRootDirectory?: string;
 	verifyAssetObjects?: boolean;
+	verifyHashes?: boolean;
 	minecraftOsName?: string;
 	maxConcurrentAssetChecks?: number;
 }
@@ -219,10 +221,145 @@ async function fetchArrayBuffer(url: string): Promise<ArrayBuffer> {
 	return await response.arrayBuffer();
 }
 
-async function getSha1Hex(data: ArrayBuffer): Promise<string> {
+type Sha1WorkerRequest = {
+	id: number;
+	data: ArrayBuffer;
+};
+
+type Sha1WorkerResponse = {
+	id: number;
+	hash?: string;
+	error?: string;
+};
+
+type Sha1WorkerTask = {
+	id: number;
+	data: ArrayBuffer;
+	resolve: (hash: string) => void;
+	reject: (error: Error) => void;
+};
+
+class Sha1WorkerPool {
+	private readonly workers: Worker[];
+	private readonly idleWorkers: Worker[];
+	private readonly inflight = new Map<number, { resolve: (hash: string) => void; reject: (error: Error) => void }>();
+	private readonly workerToTaskId = new Map<Worker, number>();
+	private readonly queue: Sha1WorkerTask[] = [];
+	private nextId = 1;
+
+	constructor(workerCount: number) {
+		this.workers = Array.from({ length: workerCount }, () => {
+			return new Worker(new URL("./sha1.worker.ts", import.meta.url), { type: "module" });
+		});
+		this.idleWorkers = [...this.workers];
+		for (const worker of this.workers) {
+			worker.addEventListener("message", (event) => {
+				this.handleMessage(worker, event as MessageEvent<Sha1WorkerResponse>);
+			});
+			worker.addEventListener("error", (event) => {
+				this.handleError(worker, event as ErrorEvent);
+			});
+		}
+	}
+
+	hash(data: ArrayBuffer): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const task: Sha1WorkerTask = {
+				id: this.nextId,
+				data,
+				resolve,
+				reject,
+			};
+			this.nextId += 1;
+			this.queue.push(task);
+			this.pump();
+		});
+	}
+
+	private pump(): void {
+		while (this.idleWorkers.length > 0 && this.queue.length > 0) {
+			const worker = this.idleWorkers.pop();
+			const task = this.queue.shift();
+			if (worker === undefined || task === undefined) {
+				return;
+			}
+			this.inflight.set(task.id, { resolve: task.resolve, reject: task.reject });
+			this.workerToTaskId.set(worker, task.id);
+			worker.postMessage({ id: task.id, data: task.data } satisfies Sha1WorkerRequest);
+		}
+	}
+
+	private handleMessage(worker: Worker, event: MessageEvent<Sha1WorkerResponse>): void {
+		const { id, hash, error } = event.data;
+		const callbacks = this.inflight.get(id);
+		if (callbacks !== undefined) {
+			this.inflight.delete(id);
+			if (error !== undefined) {
+				callbacks.reject(new Error(error));
+			} else if (hash !== undefined) {
+				callbacks.resolve(hash);
+			} else {
+				callbacks.reject(new Error("SHA-1 worker returned no result."));
+			}
+		}
+		this.workerToTaskId.delete(worker);
+		this.idleWorkers.push(worker);
+		this.pump();
+	}
+
+	private handleError(worker: Worker, event: ErrorEvent): void {
+		const taskId = this.workerToTaskId.get(worker);
+		if (taskId !== undefined) {
+			const callbacks = this.inflight.get(taskId);
+			this.inflight.delete(taskId);
+			this.workerToTaskId.delete(worker);
+			this.idleWorkers.push(worker);
+			this.pump();
+			callbacks?.reject(event.error instanceof Error ? event.error : new Error(event.message));
+			return;
+		}
+		console.warn("[minecraft] SHA-1 worker error.", event);
+	}
+}
+
+function resolveSha1WorkerCount(): number {
+	if (typeof navigator === "undefined") {
+		return DEFAULT_SHA1_WORKER_COUNT;
+	}
+	const hardwareCount = navigator.hardwareConcurrency ?? DEFAULT_SHA1_WORKER_COUNT;
+	return Math.max(1, Math.min(DEFAULT_SHA1_WORKER_COUNT, hardwareCount));
+}
+
+function createSha1WorkerPool(): Sha1WorkerPool | null {
+	if (typeof Worker === "undefined") {
+		return null;
+	}
+	try {
+		return new Sha1WorkerPool(resolveSha1WorkerCount());
+	} catch (error) {
+		console.warn("[minecraft] Failed to initialize SHA-1 worker pool.", error);
+		return null;
+	}
+}
+
+const sha1WorkerPool = createSha1WorkerPool();
+
+async function getSha1HexInline(data: ArrayBuffer): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-1", data);
 	const bytes = new Uint8Array(digest);
 	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function getSha1Hex(data: ArrayBuffer): Promise<string> {
+	if (sha1WorkerPool === null) {
+		return await getSha1HexInline(data);
+	}
+	try {
+		return await sha1WorkerPool.hash(data);
+	} catch (error) {
+		console.warn("[minecraft] SHA-1 worker failed, falling back to main thread.", error);
+		return await getSha1HexInline(data);
+	}
 }
 
 async function assertIntegrity(
@@ -325,6 +462,16 @@ async function readFileText(root: FileSystemDirectoryHandle, path: string): Prom
 	return await file.text();
 }
 
+async function readFileArrayBuffer(root: FileSystemDirectoryHandle, path: string): Promise<ArrayBuffer> {
+	const fileHandle = await getFileHandleIfExists(root, path);
+	if (fileHandle === null) {
+		throw new Error(`Missing file '${path}'.`);
+	}
+
+	const file = await fileHandle.getFile();
+	return await file.arrayBuffer();
+}
+
 async function writeFileToOpfs(
 	root: FileSystemDirectoryHandle,
 	path: string,
@@ -342,8 +489,16 @@ async function writeFileToOpfs(
 	try {
 		await writable.write(content);
 	} finally {
-		await writable.close();
+	await writable.close();
+}
+
+function warnDownloadCheckFailure(context: string, error?: unknown): void {
+	if (error === undefined) {
+		console.warn(`[minecraft] ${context}`);
+		return;
 	}
+	console.warn(`[minecraft] ${context}`, error);
+}
 }
 
 function collectAssetObjects(assetIndex: AssetIndex): AssetObjectDownload[] {
@@ -611,6 +766,7 @@ export async function isMinecraftVersionDownloaded(
 	);
 	const minecraftOsName = normalizeMinecraftOsName(options.minecraftOsName);
 	const verifyAssetObjects = options.verifyAssetObjects ?? true;
+	const verifyHashes = options.verifyHashes ?? false;
 	const maxConcurrentAssetChecks = ensurePositiveInteger(
 		options.maxConcurrentAssetChecks ?? DEFAULT_MAX_CONCURRENT_ASSET_CHECKS,
 		DEFAULT_MAX_CONCURRENT_ASSET_CHECKS,
@@ -619,7 +775,15 @@ export async function isMinecraftVersionDownloaded(
 	const root = await navigator.storage.getDirectory();
 	const versionJsonPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.json`;
 	const clientJarPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.jar`;
-	if (!(await fileExists(root, versionJsonPath)) || !(await fileExists(root, clientJarPath))) {
+	const versionJsonExists = await fileExists(root, versionJsonPath);
+	const clientJarExists = await fileExists(root, clientJarPath);
+	if (!versionJsonExists) {
+		warnDownloadCheckFailure(`Missing version manifest at '${versionJsonPath}'.`);
+	}
+	if (!clientJarExists) {
+		warnDownloadCheckFailure(`Missing client jar at '${clientJarPath}'.`);
+	}
+	if (!versionJsonExists || !clientJarExists) {
 		return false;
 	}
 
@@ -627,21 +791,52 @@ export async function isMinecraftVersionDownloaded(
 	try {
 		const manifestText = await readFileText(root, versionJsonPath);
 		versionManifest = JSON.parse(manifestText) as PrismMinecraftVersion;
-	} catch {
+	} catch (error) {
+		warnDownloadCheckFailure(`Failed to read version manifest at '${versionJsonPath}'.`, error);
 		return false;
 	}
 
 	const assetIndexDownload = versionManifest.assetIndex;
 	if (assetIndexDownload === undefined) {
+		warnDownloadCheckFailure(`Version manifest for '${resolvedVersion}' is missing asset index metadata.`);
+		return false;
+	}
+
+	const clientDownload = resolveClientDownload(versionManifest);
+	if (clientDownload === undefined) {
+		warnDownloadCheckFailure(`Version manifest for '${resolvedVersion}' is missing client download metadata.`);
 		return false;
 	}
 
 	const libraries = collectLibraryDownloads(versionManifest.libraries, DEFAULT_LIBRARY_BASE_URL, minecraftOsName);
 	for (const library of libraries) {
 		const libraryPath = `${opfsRootDirectory}/libraries/${library.relativePath}`;
-		if (!(await fileExists(root, libraryPath))) {
+		try {
+			if (verifyHashes) {
+				const libraryData = await readFileArrayBuffer(root, libraryPath);
+				await assertIntegrity(libraryData, { sha1: library.sha1, size: library.size }, `library '${library.name}'`);
+			} else if (!(await fileExists(root, libraryPath))) {
+				warnDownloadCheckFailure(`Missing library '${library.name}' at '${libraryPath}'.`);
+				return false;
+			}
+		} catch (error) {
+			warnDownloadCheckFailure(`Library check failed for '${library.name}'.`, error);
 			return false;
 		}
+	}
+
+	try {
+		if (verifyHashes) {
+			const clientJarData = await readFileArrayBuffer(root, clientJarPath);
+			await assertIntegrity(
+				clientJarData,
+				{ sha1: clientDownload.sha1, size: clientDownload.size },
+				`client jar '${resolvedVersion}'`,
+			);
+		}
+	} catch (error) {
+		warnDownloadCheckFailure(`Client jar check failed for '${resolvedVersion}'.`, error);
+		return false;
 	}
 
 	let assetIndexId: string;
@@ -650,12 +845,26 @@ export async function isMinecraftVersionDownloaded(
 			assetIndexDownload.id ?? versionManifest.assets ?? resolvedVersion,
 			"asset index id",
 		);
-	} catch {
+	} catch (error) {
+		warnDownloadCheckFailure(`Invalid asset index id for '${resolvedVersion}'.`, error);
 		return false;
 	}
 
 	const assetIndexPath = `${opfsRootDirectory}/assets/indexes/${assetIndexId}.json`;
-	if (!(await fileExists(root, assetIndexPath))) {
+	try {
+		if (verifyHashes) {
+			const assetIndexData = await readFileArrayBuffer(root, assetIndexPath);
+			await assertIntegrity(
+				assetIndexData,
+				{ sha1: assetIndexDownload.sha1, size: assetIndexDownload.size },
+				`asset index '${assetIndexId}'`,
+			);
+		} else if (!(await fileExists(root, assetIndexPath))) {
+			warnDownloadCheckFailure(`Missing asset index at '${assetIndexPath}'.`);
+			return false;
+		}
+	} catch (error) {
+		warnDownloadCheckFailure(`Asset index check failed for '${assetIndexId}'.`, error);
 		return false;
 	}
 
@@ -668,22 +877,40 @@ export async function isMinecraftVersionDownloaded(
 		const assetIndexText = await readFileText(root, assetIndexPath);
 		const assetIndex = JSON.parse(assetIndexText) as AssetIndex;
 		assetObjects = collectAssetObjects(assetIndex);
-	} catch {
+	} catch (error) {
+		warnDownloadCheckFailure(`Failed to read asset index at '${assetIndexPath}'.`, error);
 		return false;
 	}
 
-	let missingAssetObject = false;
+	let assetCheckError: Error | null = null;
 	await runConcurrently(assetObjects, maxConcurrentAssetChecks, async (assetObject) => {
-		if (missingAssetObject) {
+		if (assetCheckError !== null) {
 			return;
 		}
 
 		const hashPrefix = assetObject.hash.slice(0, 2);
 		const objectPath = `${opfsRootDirectory}/assets/objects/${hashPrefix}/${assetObject.hash}`;
-		if (!(await fileExists(root, objectPath))) {
-			missingAssetObject = true;
+		console.debug("[verify] path", objectPath);
+		try {
+			if (verifyHashes) {
+				const objectData = await readFileArrayBuffer(root, objectPath);
+				await assertIntegrity(
+					objectData,
+					{ sha1: assetObject.hash, size: assetObject.size },
+					`asset object '${assetObject.hash}'`,
+				);
+			} else if (!(await fileExists(root, objectPath))) {
+				assetCheckError = new Error(`Missing asset object '${assetObject.hash}'.`);
+			}
+		} catch (error) {
+			assetCheckError = error instanceof Error ? error : new Error(String(error));
 		}
 	});
 
-	return !missingAssetObject;
+	if (assetCheckError !== null) {
+		warnDownloadCheckFailure("Asset object check failed.", assetCheckError);
+		return false;
+	}
+
+	return true;
 }

@@ -7,7 +7,7 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 	this.cx.mount = async () => {
 		await initDotnet(this.canvas);
 
-		if (!(await isMinecraftVersionDownloaded("1.16.1")))
+		if (!(await isMinecraftVersionDownloaded("1.16.1", { verifyHashes: true })))
 			await downloadMinecraftVersionToOpfs("1.16.1");
 		else
 			console.debug("downlaodead 1.16.1 already");

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.WebAssembly">
 	<PropertyGroup>
 		<IkvmWasmEnableAot Condition="'$(IkvmWasmEnableAot)' == ''">false</IkvmWasmEnableAot>
+		<IkvmWasmEnableWasmOpt Condition="'$(IkvmWasmEnableWasmOpt)' == ''">false</IkvmWasmEnableWasmOpt>
 
 		<TargetFramework>net10.0</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -28,7 +29,7 @@
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
 		<WasmEnableWebcil>false</WasmEnableWebcil>
-		<WasmRunWasmOpt>$(IkvmWasmEnableAot)</WasmRunWasmOpt>
+		<WasmRunWasmOpt>$(IkvmWasmEnableWasmOpt)</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>
 		<WasmNativeStrip>false</WasmNativeStrip>
@@ -37,15 +38,16 @@
 		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
 
 		<!-- MAXIMUM_MEMORY is 65535 wasm pages -->
-		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT -sOFFSCREEN_FRAMEBUFFER</EmccExtraLDFlags>
-		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
-		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/../statics/lib_emscripten_glfw3.js</EmccExtraLDFlags>
+		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT</EmccExtraLDFlags>
+		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_FIREFOX_VERSION=2147483647 -sMIN_SAFARI_VERSION=2147483647 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
+		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/../statics/lib_emscripten_glfw3.js -lopenal</EmccExtraLDFlags>
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
 		<EmccCompileOptimizationFlag>-O3</EmccCompileOptimizationFlag>
 		<EmccEnvironment>web,worker</EmccEnvironment>
 
 		<MicrosoftNetCoreAppRuntimePackDir>$(MSBuildProjectDirectory)\..\statics\dotnet</MicrosoftNetCoreAppRuntimePackDir>
 		<MicrosoftNetCoreAppRuntimePackRidDir>$(MicrosoftNetCoreAppRuntimePackDir)\runtimes\browser-wasm</MicrosoftNetCoreAppRuntimePackRidDir>
+		<MonoAotCrossDir>/home/r58playz/fna-wasm/monomod/runtime/artifacts/bin/mono/browser.wasm.Release/cross/browser-wasm</MonoAotCrossDir>
 		<EmsdkRoot>$(MSBuildProjectDirectory)\..\statics\emsdk\</EmsdkRoot>
 		<WasmCachePath>$(EmsdkRoot)\emscripten\cache\</WasmCachePath>
 		<__EmscriptenSdkToolsPath>$(EmsdkRoot)</__EmscriptenSdkToolsPath>
@@ -69,12 +71,19 @@
 		<AOTWhitelist Include="ikvmc_lwjgl3" />
 		<AOTWhitelist Include="ikvmc_joml" />
 		<AOTWhitelist Include="ikvmc_log4j" />
+		<AOTWhitelist Include="ikvmc_asm" />
 	</ItemGroup>
 
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
 		<ItemGroup>
 			<ResolvedRuntimePack PackageDirectory="$(MicrosoftNetCoreAppRuntimePackDir)"
 				Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
+		</ItemGroup>
+	</Target>
+	<Target Name="OverrideMonoAotCrossCompiler" AfterTargets="ResolveFrameworkReferences">
+		<ItemGroup>
+			<MonoAotCrossCompiler Remove="@(MonoAotCrossCompiler)" />
+			<MonoAotCrossCompiler Include="$(MonoAotCrossDir)/mono-aot-cross" RuntimeIdentifier="browser-wasm" />
 		</ItemGroup>
 	</Target>
 
@@ -104,6 +113,7 @@
 		<NativeFileReference Include="..\statics\ikvm\libzip.a" />
 		<NativeFileReference Include="..\statics\ikvm\libnio.a" />
 		<NativeFileReference Include="..\statics\ikvm\libnet.a" />
+		<NativeFileReference Include="..\statics\ikvm\libmanagement.a" />
 		<NativeFileReference Include="Emscripten.c" />
 		<NativeFileReference Include="statics.c" />
 		<NativeFileReference Include="icalls.c" />
@@ -112,6 +122,7 @@
 		<NativeFileReference Include="..\statics\liblwjgl3.a" />
 		<NativeFileReference Include="..\statics\libffi.a" />
 		<NativeFileReference Include="..\statics\liblwjgl_stb.a" />
+		<NativeFileReference Include="..\statics\liblwjgl_openal.a" />
 
 		<!-- trick mono wasm into letting the load through -->
 		<_WasmPInvokeModules Include="/ikvm/bin/libjvm.so" />
@@ -127,6 +138,7 @@
 		<Reference Include="..\statics\ikvmc_lwjgl3.dll" />
 		<Reference Include="..\jars\ikvmc_joml.dll" />
 		<Reference Include="..\jars\ikvmc_log4j.dll" />
+		<Reference Include="..\jars\ikvmc_asm.dll" />
 	</ItemGroup>
 
 	<!-- do not touch unless you like debugging -->
