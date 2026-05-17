@@ -69,12 +69,6 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		])
 		.create();
 
-	// why??
-	let pump = (runtime.Module as any).wasmExports["emscripten_main_thread_process_queued_calls"];
-	setInterval(() => {
-		pump();
-	}, 1);
-
 	config = runtime.getConfig();
 	exports = await runtime.getAssemblyExports(config.mainAssemblyName!);
 
