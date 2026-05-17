@@ -47,7 +47,7 @@
 
 		<MicrosoftNetCoreAppRuntimePackDir>$(MSBuildProjectDirectory)\..\statics\dotnet</MicrosoftNetCoreAppRuntimePackDir>
 		<MicrosoftNetCoreAppRuntimePackRidDir>$(MicrosoftNetCoreAppRuntimePackDir)\runtimes\browser-wasm</MicrosoftNetCoreAppRuntimePackRidDir>
-		<MonoAotCrossDir>/home/r58playz/fna-wasm/monomod/runtime/artifacts/bin/mono/browser.wasm.Release/cross/browser-wasm</MonoAotCrossDir>
+		<MonoAotCrossDir>$(MicrosoftNetCoreAppRuntimePackDir)\cross</MonoAotCrossDir>
 		<EmsdkRoot>$(MSBuildProjectDirectory)\..\statics\emsdk\</EmsdkRoot>
 		<WasmCachePath>$(EmsdkRoot)\emscripten\cache\</WasmCachePath>
 		<__EmscriptenSdkToolsPath>$(EmsdkRoot)</__EmscriptenSdkToolsPath>
