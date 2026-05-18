@@ -489,7 +489,8 @@ async function writeFileToOpfs(
 	try {
 		await writable.write(content);
 	} finally {
-	await writable.close();
+		await writable.close();
+	}
 }
 
 function warnDownloadCheckFailure(context: string, error?: unknown): void {
@@ -498,7 +499,6 @@ function warnDownloadCheckFailure(context: string, error?: unknown): void {
 		return;
 	}
 	console.warn(`[minecraft] ${context}`, error);
-}
 }
 
 function collectAssetObjects(assetIndex: AssetIndex): AssetObjectDownload[] {

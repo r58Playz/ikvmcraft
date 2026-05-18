@@ -65,13 +65,12 @@
 		<AOTWhitelist Include="netstandard" />
 
 		<AOTWhitelist Include="IkvmWasm" />
+		<AOTWhitelist Include="IKVM.Runtime" />
 		<AOTWhitelist Include="IKVM.ByteCode" />
 		<AOTWhitelist Include="IKVM.CoreLib" />
-		<AOTWhitelist Include="IKVM.Runtime" />
 
 		<AOTWhitelist Include="ikvmc_lwjgl3" />
-		<AOTWhitelist Include="ikvmc_asm" />
-		<!-- dont aot log4j it has tons of optdeps -->
+		<!-- don't aot log4j it has a ton of probes that will fail on aot -->
 	</ItemGroup>
 
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">

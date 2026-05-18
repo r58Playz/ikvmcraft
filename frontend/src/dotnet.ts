@@ -26,15 +26,6 @@ console.log = new Proxy(console.log, {
 })
 */
 
-const rootFolder = await navigator.storage.getDirectory();
-(globalThis as any).selectjar = async () => {
-	let [file] = await showOpenFilePicker();
-	const data = await file.getFile().then((r) => r.stream());
-	let handle = await rootFolder.getFileHandle("main.jar", { create: true });
-	const writable = await handle.createWritable();
-	await data.pipeTo(writable);
-}
-
 export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.time("dotnet ");
 	runtime = await dotnet
@@ -45,27 +36,22 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
-			
-			/*
-			// jit functions quickly and jit more functions
-			`--jiterpreter-minimum-trace-hit-count=${500}`,
-
-			// monitor jitted functions for less time
-			`--jiterpreter-trace-monitoring-period=${100}`,
-
-			// reject less funcs
-			`--jiterpreter-trace-monitoring-max-average-penalty=${150}`,
+			// accept smaller traces earlier
+			`--jiterpreter-minimum-trace-value=${10}`,
+			`--jiterpreter-minimum-trace-hit-count=${1000}`,
+			`--jiterpreter-minimum-distance-between-traces=${3}`,
 
 			// increase jit function limits
 			`--jiterpreter-wasm-bytes-limit=${64 * 1024 * 1024}`,
+			`--jiterpreter-max-module-size=${24 * 1024 - 1}`,
 			`--jiterpreter-table-size=${32 * 1024}`,
 
 			// print jit stats
 			`--jiterpreter-stats-enabled`,
-			*/
+			`--jiterpreter-count-bailouts`,
+			`--jiterpreter-estimate-heat`,
 			
-			
-			`--no-jiterpreter-traces-enabled`
+			//`--no-jiterpreter-traces-enabled`
 		])
 		.create();
 

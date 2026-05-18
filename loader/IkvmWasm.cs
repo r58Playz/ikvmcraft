@@ -120,11 +120,11 @@ static partial class IkvmWasm
                 GameDirectoryPath = "/libsdl/minecraft/",
                 MinecraftOsName = "Emscripten",
                 ManagedAssemblyNames = dlls,
-                AsmTransformers = new[]
-                {
-                    MinecraftRunLoopTransformer.AsTransformer(MinecraftRunLoopTransformer.Obfuscated_1_16_1),
-                    MainCatchEmLoopTransformer.AsTransformer(MainCatchEmLoopTransformer.Default),
-                },
+                AsmTransformers =
+                [
+                    MinecraftRunLoopTransform.AsTransformer(MinecraftRunLoopTransform.Obfuscated_1_16_1),
+                    .. NettyBackendSwapTransform.AsTransformers(NettyBackendSwapTransform.Obfuscated_1_16_1),
+                ],
             });
 
             return Task.CompletedTask;
