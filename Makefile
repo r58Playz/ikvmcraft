@@ -1,4 +1,4 @@
-STATICS_RELEASE=16883745-4228-4468-9dce-492cffcfa3c9
+STATICS_RELEASE=b88ddafa-7409-4f79-8364-fa1c347aa6f6
 IKVM_RELEASE=61e5b49e-8bae-44ad-bc24-1f3f0e6622cb
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
@@ -34,9 +34,10 @@ build: deps asm-jars
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
 #
-	bash ikvmc.sh statics/ikvmc_lwjgl3.dll statics/lwjgl3.jar
-	bash ikvmc.sh jars/ikvmc_log4j.dll jars/log4j-core-2.17.1.jar jars/log4j-api-2.17.1.jar
-	bash ikvmc.sh jars/ikvmc_asm.dll jars/asm-$(ASM_VERSION).jar jars/asm-tree-$(ASM_VERSION).jar jars/asm-analysis-$(ASM_VERSION).jar jars/asm-commons-$(ASM_VERSION).jar
+	./ikvmc.sh statics/ikvmc_lwjgl3.dll statics/lwjgl3.jar
+	./ikvmc.sh jars/ikvmc_log4j.dll jars/log4j-core-2.17.1.jar jars/log4j-api-2.17.1.jar
+	./ikvmc.sh jars/ikvmc_asm.dll jars/asm-$(ASM_VERSION).jar jars/asm-tree-$(ASM_VERSION).jar jars/asm-analysis-$(ASM_VERSION).jar jars/asm-commons-$(ASM_VERSION).jar
+	./aotprofile.sh statics/ikvm_java.aotprofile statics/ikvm/IKVM.Java.dll java. sun.nio. sun.reflect. sun.misc. sun.util. sun.security. sun.net. com.sun.nio. ikvm. jdk.internal.
 #
 	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
@@ -55,7 +56,7 @@ publish: build
 	cd frontend && pnpm build
 
 dotnetclean:
-	rm -rvf loader/{bin,obj} || true
+	rm -rvf loader/{bin,obj} statics/ikvm_java.aotprofile || true
 ikvmclean:
 	rm -rvf jars/ikvmc_log4j.{dll,pdb} jars/ikvmc_asm.{dll,pdb} statics/ikvmc_lwjgl3.{dll,pdb} || true
 clean: dotnetclean

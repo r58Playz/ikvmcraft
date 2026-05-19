@@ -1,5 +1,8 @@
 /loader/bin
 /loader/obj
+/aotprofile/bin
+/aotprofile/obj
+
 /statics
 /frontend/public/image
 /jars/*.dll

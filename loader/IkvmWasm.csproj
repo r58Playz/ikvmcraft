@@ -59,8 +59,35 @@
 
 	<ItemGroup>
 		<AOTWhitelist Include="System.Private.CoreLib" />
+		<AOTWhitelist Include="System" />
 		<AOTWhitelist Include="System.Collections" />
+		<!--
 		<AOTWhitelist Include="System.Collections.Concurrent" />
+		<AOTWhitelist Include="System.Collections.Immutable" />
+		<AOTWhitelist Include="System.Collections.NonGeneric" />
+		<AOTWhitelist Include="System.Collections.Specialized" />
+		<AOTWhitelist Include="System.Console" />
+		<AOTWhitelist Include="System.Core" />
+		<AOTWhitelist Include="System.IO" />
+		<AOTWhitelist Include="System.Linq" />
+		<AOTWhitelist Include="System.Linq.AsyncEnumerable" />
+		<AOTWhitelist Include="System.Linq.Expressions" />
+		<AOTWhitelist Include="System.Linq.Parallel" />
+		<AOTWhitelist Include="System.Linq.Queryable" />
+		<AOTWhitelist Include="System.Private.DataContractSerialization" />
+		<AOTWhitelist Include="System.Private.Uri" />
+		<AOTWhitelist Include="System.Private.Xml" />
+		<AOTWhitelist Include="System.Private.Xml.Linq" />
+		<AOTWhitelist Include="System.Reflection" />
+		<AOTWhitelist Include="System.Reflection.DispatchProxy" />
+		<AOTWhitelist Include="System.Reflection.Emit" />
+		<AOTWhitelist Include="System.Reflection.Emit.ILGeneration" />
+		<AOTWhitelist Include="System.Reflection.Emit.Lightweight" />
+		<AOTWhitelist Include="System.Reflection.Extensions" />
+		<AOTWhitelist Include="System.Reflection.Metadata" />
+		<AOTWhitelist Include="System.Reflection.Primitives" />
+		<AOTWhitelist Include="System.Reflection.TypeExtensions" />
+		-->
 		<AOTWhitelist Include="mscorlib" />
 		<AOTWhitelist Include="netstandard" />
 
@@ -68,10 +95,35 @@
 		<AOTWhitelist Include="IKVM.Runtime" />
 		<AOTWhitelist Include="IKVM.ByteCode" />
 		<AOTWhitelist Include="IKVM.CoreLib" />
+		<AOTWhitelist Include="IKVM.Java" />
 
 		<AOTWhitelist Include="ikvmc_lwjgl3" />
+		<AOTWhitelist Include="ikvmc_asm" />
 		<!-- don't aot log4j it has a ton of probes that will fail on aot -->
+
+		<!-- profile-guided AOT: assembly name + path to .aotprofile. only methods
+		     present in the profile get AOT'd; everything else falls back to
+		     interpreter. one entry per assembly. -->
+		<AOTProfile Include="IKVM.Java">
+			<Profile>$(MSBuildProjectDirectory)/../statics/ikvm_java.aotprofile</Profile>
+		</AOTProfile>
 	</ItemGroup>
+
+	<!-- mirrors MonoAOTCompilerDefault{Aot,Process}Arguments from WasmApp.Common.targets.
+	     we pre-populate _AotInputAssemblies before _WasmAotCompileApp runs, so we
+	     need our own copy of the defaults. precomputed as a flat string property
+	     so it doesn't pick up item-metadata batching when used inside the AOTProfile
+	     batched target. keep in sync with the SDK. -->
+	<PropertyGroup>
+		<_AotProfileDefaultAotArgs>no-opt;static;direct-icalls;deterministic</_AotProfileDefaultAotArgs>
+		<_AotProfileDefaultAotArgs Condition="!$([MSBuild]::IsOSPlatform('windows'))">$(_AotProfileDefaultAotArgs);compile-in-child</_AotProfileDefaultAotArgs>
+		<_AotProfileDefaultAotArgs Condition="'$(WasmEnableSIMD)' == 'true'">$(_AotProfileDefaultAotArgs);mattr=simd</_AotProfileDefaultAotArgs>
+
+		<_AotProfileDefaultProcessArgs Condition="'$(WasmAOTCompilerVerbose)' == 'true'">-v</_AotProfileDefaultProcessArgs>
+		<_AotProfileDefaultProcessArgs Condition="'$(WasmEnableExceptionHandling)' == 'true'">$(_AotProfileDefaultProcessArgs);--wasm-exceptions</_AotProfileDefaultProcessArgs>
+		<_AotProfileDefaultProcessArgs Condition="'$(WasmEnableThreads)' == 'true'">$(_AotProfileDefaultProcessArgs);--wasm-gc-safepoints</_AotProfileDefaultProcessArgs>
+		<_AotProfileDefaultProcessArgs>$(_AotProfileDefaultProcessArgs.TrimStart(';'))</_AotProfileDefaultProcessArgs>
+	</PropertyGroup>
 
 	<Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
 		<ItemGroup>
@@ -98,6 +150,27 @@
 		</PropertyGroup>
 		<ItemGroup>
 			<_AOT_InternalForceInterpretAssemblies Include="@(_WasmAssembliesInternal)" Condition="!$([System.String]::new('$(_AOTWhitelist)').Contains('|%(Filename)|'))" />
+		</ItemGroup>
+	</Target>
+
+	<!-- run once per AOTProfile (task-batched via Outputs). pre-populates
+	     _AotInputAssemblies with custom AotArguments (profile-only;profile=<path>)
+	     and removes the assembly from _WasmAssembliesInternal so the SDK target
+	     does not re-add it with the default AotArguments. _AotInputAssemblies
+	     items defined here survive into _WasmAotCompileApp. -->
+	<Target Name="AotApplyProfiles" BeforeTargets="_WasmAotCompileApp" Outputs="%(AOTProfile.Identity)" Condition="'$(_WasmShouldAOT)' == 'true'">
+		<PropertyGroup>
+			<_AotProfileAsmName>%(AOTProfile.Identity)</_AotProfileAsmName>
+			<_AotProfilePath>%(AOTProfile.Profile)</_AotProfilePath>
+		</PropertyGroup>
+		<Error Condition="!Exists('$(_AotProfilePath)')" Text="AOTProfile '$(_AotProfileAsmName)' references missing profile '$(_AotProfilePath)'" />
+		<Message Importance="High" Text="[AotApplyProfiles] $(_AotProfileAsmName) -&gt; profile '$(_AotProfilePath)' (aot args: $(_AotProfileDefaultAotArgs);profile-only;profile=$(_AotProfilePath))" />
+		<ItemGroup>
+			<_AotInputAssemblies Include="@(_WasmAssembliesInternal)" Condition="'%(Filename)' == '$(_AotProfileAsmName)'">
+				<AotArguments>$(_AotProfileDefaultAotArgs);profile-only;profile=$(_AotProfilePath)</AotArguments>
+				<ProcessArguments>$(_AotProfileDefaultProcessArgs)</ProcessArguments>
+			</_AotInputAssemblies>
+			<_WasmAssembliesInternal Remove="@(_WasmAssembliesInternal)" Condition="'%(Filename)' == '$(_AotProfileAsmName)'" />
 		</ItemGroup>
 	</Target>
 
@@ -135,7 +208,6 @@
 		<PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.3" />
 
 		<Reference Include="..\statics\ikvmc_lwjgl3.dll" />
-		<Reference Include="..\jars\ikvmc_joml.dll" />
 		<Reference Include="..\jars\ikvmc_log4j.dll" />
 		<Reference Include="..\jars\ikvmc_asm.dll" />
 	</ItemGroup>

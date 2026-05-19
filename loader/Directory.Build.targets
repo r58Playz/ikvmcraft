@@ -1,0 +1,7 @@
+<Project>
+	<PropertyGroup>
+		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' == 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net10.0\</_PatchedWasmTasksDir>
+		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' != 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net472\</_PatchedWasmTasksDir>
+		<WasmAppBuilderTasksAssemblyPath>$(_PatchedWasmTasksDir)WasmAppBuilder.dll</WasmAppBuilderTasksAssemblyPath>
+	</PropertyGroup>
+</Project>

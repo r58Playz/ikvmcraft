@@ -88,6 +88,7 @@ static partial class IkvmWasm
             java.lang.System.setProperty("org.lwjgl.system.allocator", "system");
             java.lang.System.setProperty("org.lwjgl.system.SharedLibraryExtractPath", "/tmp/lwjgl");
             java.lang.System.setProperty("org.lwjgl.librarypath", "/tmp/lwjgl");
+            java.lang.System.setProperty("log4j2.contextSelector", "org.apache.logging.log4j.core.selector.BasicContextSelector");
 
             foreach (var prop in ConvertJSObjectToStringArray(props))
             {
@@ -124,6 +125,7 @@ static partial class IkvmWasm
                 [
                     MinecraftRunLoopTransform.AsTransformer(MinecraftRunLoopTransform.Obfuscated_1_16_1),
                     .. NettyBackendSwapTransform.AsTransformers(NettyBackendSwapTransform.Obfuscated_1_16_1),
+                    LazyDfuTransform.AsTransformer(),
                 ],
             });
 

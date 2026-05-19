@@ -18,8 +18,10 @@ console.log = new Proxy(console.log, {
 		return Reflect.apply(target, thisArg, argArray);
 	},
 })
+*/
+/*
 (globalThis as any).logs = []
-console.log = new Proxy(console.log, {
+console.debug = new Proxy(console.debug, {
 	apply(target, thisArg, argArray) {
 		(globalThis as any).logs.push(argArray);
 	},
@@ -32,7 +34,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		.withConfig({ pthreadPoolInitialSize: 16 })
 		.withEnvironmentVariable("MONO_SLEEP_ABORT_LIMIT", "20000")
 		//.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
-		//.withEnvironmentVariable("MONO_LOG_MASK", "type")
+		//.withEnvironmentVariable("MONO_LOG_MASK", "aot")
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
@@ -48,8 +50,6 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 			// print jit stats
 			`--jiterpreter-stats-enabled`,
-			`--jiterpreter-count-bailouts`,
-			`--jiterpreter-estimate-heat`,
 			
 			//`--no-jiterpreter-traces-enabled`
 		])
