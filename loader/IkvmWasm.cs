@@ -58,6 +58,17 @@ static partial class IkvmWasm
             Emscripten.MountFetchFile(0, "/ikvm/bin/libnio.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libnet.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libmanagement.so");
+            // AWT stack — Toolkit.<clinit> does System.loadLibrary("awt"),
+            // which goes through ClassLoader.loadLibrary's file.exists() gate
+            // before reaching JVM_LoadLibrary. The static-lib registry in
+            // loader/statics.c maps these paths back to compiled .a's, but
+            // the path strings must also resolve as existing files for the
+            // pre-load existence check to pass.
+            Emscripten.MountFetchFile(0, "/ikvm/bin/libawt.so");
+            Emscripten.MountFetchFile(0, "/ikvm/bin/libfontmanager.so");
+            Emscripten.MountFetchFile(0, "/ikvm/bin/libmlib_image.so");
+            Emscripten.MountFetchFile(0, "/ikvm/bin/liblcms.so");
+            Emscripten.MountFetchFile(0, "/ikvm/bin/libjpeg.so");
             Emscripten.MountFetchDir(0, "/ikvm/lib");
             Emscripten.MountFetchFile(0, "/ikvm/lib/currency.data");
             Emscripten.MountFetchFile(0, "/ikvm/lib/tzdb.dat");

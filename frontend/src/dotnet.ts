@@ -71,7 +71,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	};
 	console.debug("PreInit...");
 	await runtime.runMain();
-	await exports.IkvmWasm.PreInit(location.href, [["org.lwjgl.util.Debug", "true"], ["org.lwjgl.util.DebugLoader", "true"]]);
+	await exports.IkvmWasm.PreInit(location.href, [["org.lwjgl.util.Debug", "true"], ["org.lwjgl.util.DebugLoader", "true"], ["java.awt.headless", "true"]]);
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
 }

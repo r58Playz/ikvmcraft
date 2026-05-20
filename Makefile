@@ -1,5 +1,5 @@
 STATICS_RELEASE=b88ddafa-7409-4f79-8364-fa1c347aa6f6
-IKVM_RELEASE=61e5b49e-8bae-44ad-bc24-1f3f0e6622cb
+IKVM_RELEASE=5dc2f3d4-c852-4725-b4fb-6c8990a54c50
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
@@ -58,6 +58,6 @@ publish: build
 dotnetclean:
 	rm -rvf loader/{bin,obj} statics/ikvm_java.aotprofile || true
 ikvmclean:
-	rm -rvf jars/ikvmc_log4j.{dll,pdb} jars/ikvmc_asm.{dll,pdb} statics/ikvmc_lwjgl3.{dll,pdb} || true
+	rm -rvf jars/ikvmc_{log4j,asm}.{dll,pdb} statics/ikvmc_lwjgl3.{dll,pdb} || true
 clean: dotnetclean
 	rm -rvf statics || true

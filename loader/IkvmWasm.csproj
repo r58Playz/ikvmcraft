@@ -186,6 +186,16 @@
 		<NativeFileReference Include="..\statics\ikvm\libnio.a" />
 		<NativeFileReference Include="..\statics\ikvm\libnet.a" />
 		<NativeFileReference Include="..\statics\ikvm\libmanagement.a" />
+		<NativeFileReference Include="..\statics\ikvm\libjpeg.a" />
+		<!-- AWT stack: libawt is the merged libawt + libawt_headless archive
+		     produced by build-ikvm-native.sh. wasm-ld follows ELF
+		     left-to-right archive scanning, so libfontmanager (which has
+		     unresolved FT_* references) must precede libfreetype. -->
+		<NativeFileReference Include="..\statics\ikvm\libmlib_image.a" />
+		<NativeFileReference Include="..\statics\ikvm\liblcms.a" />
+		<NativeFileReference Include="..\statics\ikvm\libawt.a" />
+		<NativeFileReference Include="..\statics\ikvm\libfontmanager.a" />
+		<NativeFileReference Include="..\statics\ikvm\libfreetype.a" />
 		<NativeFileReference Include="Emscripten.c" />
 		<NativeFileReference Include="statics.c" />
 		<NativeFileReference Include="icalls.c" />
