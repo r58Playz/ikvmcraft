@@ -1,4 +1,4 @@
-STATICS_RELEASE=8f047b70-4b32-4bb8-a735-e1fe8dda1ed5
+STATICS_RELEASE=2f78bbde-8957-4985-87c8-05232cd3d844
 IKVM_RELEASE=eddbf576-97e4-49fa-8606-f6c6f6f9b8ae
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
@@ -11,7 +11,7 @@ statics:
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/ikvm-wasm-bundle.zip -O statics/ikvm.zip
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libglfw3-ng-gl4es-mt.a -O statics/libglfw3.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/lib_emscripten_glfw3-ng-gl4es-mt.js -O statics/lib_emscripten_glfw3.js
-	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/lwjgl3-mt.jar -O statics/lwjgl3.jar
+	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/lwjgl3-mt.jar -O statics/lwjgl3-3.2.2.jar
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl3-mt.a -O statics/liblwjgl3.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl_stb-mt.a -O statics/liblwjgl_stb.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl_openal_stubs-mt.a -O statics/liblwjgl_openal.a
@@ -20,24 +20,27 @@ statics:
 
 deps: statics
 
-ASM_VERSION=9.7.1
-ASM_BASE=https://repo1.maven.org/maven2/org/ow2/asm
-
-asm-jars:
-	test -f jars/asm-$(ASM_VERSION).jar          || wget $(ASM_BASE)/asm/$(ASM_VERSION)/asm-$(ASM_VERSION).jar                   -O jars/asm-$(ASM_VERSION).jar
-	test -f jars/asm-tree-$(ASM_VERSION).jar     || wget $(ASM_BASE)/asm-tree/$(ASM_VERSION)/asm-tree-$(ASM_VERSION).jar         -O jars/asm-tree-$(ASM_VERSION).jar
-	test -f jars/asm-analysis-$(ASM_VERSION).jar || wget $(ASM_BASE)/asm-analysis/$(ASM_VERSION)/asm-analysis-$(ASM_VERSION).jar -O jars/asm-analysis-$(ASM_VERSION).jar
-	test -f jars/asm-commons-$(ASM_VERSION).jar  || wget $(ASM_BASE)/asm-commons/$(ASM_VERSION)/asm-commons-$(ASM_VERSION).jar   -O jars/asm-commons-$(ASM_VERSION).jar
-
-build: deps asm-jars
-	rm -r statics/{dotnet,ikvm} frontend/public/{_framework,ikvm} loader/bin/Release/net10.0/publish/wwwroot/_framework || true
+ikvmc-bundles: deps
 	unzip -q -o statics/dotnet.zip -d statics/dotnet
 	unzip -q -o statics/ikvm.zip -d statics/ikvm
+	python3 build-ikvmc.py all
+
+build: ikvmc-bundles
+	rm -r frontend/public/{_framework,ikvm} loader/bin/Release/net10.0/publish/wwwroot/_framework || true
 #
-	./ikvmc.sh statics/ikvmc_lwjgl3.dll statics/lwjgl3.jar
-	./ikvmc.sh jars/ikvmc_log4j.dll jars/log4j-core-2.17.1.jar jars/log4j-api-2.17.1.jar
-	./ikvmc.sh jars/ikvmc_asm.dll jars/asm-$(ASM_VERSION).jar jars/asm-tree-$(ASM_VERSION).jar jars/asm-analysis-$(ASM_VERSION).jar jars/asm-commons-$(ASM_VERSION).jar
-	./aotprofile.sh statics/ikvm_java.aotprofile statics/ikvm/IKVM.Java.dll java. sun.nio. sun.reflect. sun.misc. sun.util. sun.security. sun.net. com.sun.nio. ikvm. jdk.internal.
+	./aotprofile.sh statics/ikvm_java.aotprofile statics/ikvm/IKVM.Java.dll \
+		ikvm.runtime. ikvm.internal. \
+		java.lang. java.util. java.nio. java.net. java.security. java.time. \
+		sun.nio.fs. sun.nio.cs. com.sun.nio.zipfs. \
+		sun.reflect. sun.misc.
+	# probably need to tighten fastutil more
+	./aotprofile.sh jars/ikvmc_fastutil-8.2.1.aotprofile jars/ikvmc_fastutil-8.2.1.dll \
+		it.unimi.dsi.fastutil.objects. \
+		it.unimi.dsi.fastutil.ints. \
+		it.unimi.dsi.fastutil.longs. \
+		it.unimi.dsi.fastutil.doubles. \
+		it.unimi.dsi.fastutil.shorts. \
+		it.unimi.dsi.fastutil.booleans.
 #
 	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
@@ -56,8 +59,8 @@ publish: build
 	cd frontend && pnpm build
 
 dotnetclean:
-	rm -rvf loader/{bin,obj} statics/ikvm_java.aotprofile || true
+	rm -rvf loader/{bin,obj} loader/Generated.targets loader/ikvmc-manifest.g.json || true
 ikvmclean:
-	rm -rvf jars/ikvmc_{log4j,asm}.{dll,pdb} statics/ikvmc_lwjgl3.{dll,pdb} || true
-clean: dotnetclean
+	rm -rvf {statics,jars}/ikvmc_*.{dll,pdb} {statics,jars}/*.aotprofile loader/Generated.targets loader/ikvmc-manifest.g.json || true
+clean: dotnetclean ikvmclean
 	rm -rvf statics || true

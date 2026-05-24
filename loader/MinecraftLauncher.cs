@@ -33,7 +33,6 @@ internal sealed class MinecraftLaunchOptions
 	public IReadOnlyList<string> ExtraGameArguments { get; init; } = Array.Empty<string>();
 	public IReadOnlyDictionary<string, string> ExtraLaunchVariables { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyDictionary<string, string> SystemProperties { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
-	public IReadOnlyList<IkvmClassLoaderDll> ManagedAssemblyNames { get; init; } = Array.Empty<IkvmClassLoaderDll>();
 	public IReadOnlyList<IkvmClassLoaderTransformer> AsmTransformers { get; init; } = Array.Empty<IkvmClassLoaderTransformer>();
 }
 
@@ -50,7 +49,7 @@ internal static class MinecraftLauncher
 {
 	private static readonly Regex LaunchVariablePattern = new("\\$\\{(?<name>[a-zA-Z0-9_]+)\\}", RegexOptions.Compiled);
 
-	public static MinecraftLaunchPlan BuildLaunchPlan(MinecraftLaunchOptions options)
+	public static MinecraftLaunchPlan BuildLaunchPlan(MinecraftLaunchOptions options, IkvmcMatchResult? bundleMatch = null)
 	{
 		if (options is null)
 		{
@@ -133,7 +132,8 @@ internal static class MinecraftLauncher
 			}
 		}
 
-		var classPathJars = BuildClassPath(root, libraryDirectoryPath, versionJarPath, options.MinecraftOsName, featureFlags);
+		var jarsToSkip = bundleMatch?.JarsToSkip;
+		var classPathJars = BuildClassPath(root, libraryDirectoryPath, versionJarPath, options.MinecraftOsName, featureFlags, jarsToSkip);
 
 		return new MinecraftLaunchPlan
 		{
@@ -164,13 +164,17 @@ internal static class MinecraftLauncher
 			throw new ArgumentNullException(nameof(options));
 		}
 
-		var plan = BuildLaunchPlan(options);
-		var managedAssemblyNames = options.ManagedAssemblyNames?.ToArray() ?? [];
+		var manifest = IkvmcManifest.LoadEmbedded();
+		using var versionJsonForMatch = JsonDocument.Parse(File.ReadAllText(options.VersionJsonPath));
+		var bundleMatch = manifest.MatchVersion(versionJsonForMatch.RootElement);
+		LogBundleSelection(bundleMatch);
+
+		var plan = BuildLaunchPlan(options, bundleMatch);
 		var transformers = options.AsmTransformers?.ToArray() ?? [];
 
 		Mappings.SetMappings(new MojmapMappings(File.ReadAllText(options.ClientMappingsPath)));
 
-		var loader = new IkvmClassLoader(plan.ClassPathJars, managedAssemblyNames, transformers);
+		var loader = new IkvmClassLoader(plan.ClassPathJars, bundleMatch.ActiveDlls, transformers);
 
 		java.lang.Thread.currentThread().setContextClassLoader(loader);
 
@@ -189,6 +193,24 @@ internal static class MinecraftLauncher
 
 
 		return plan;
+	}
+
+	private static void LogBundleSelection(IkvmcMatchResult match)
+	{
+		if (match.ActiveDlls.Length == 0)
+		{
+			Console.WriteLine("[MinecraftLauncher] no ikvmc bundles activated — every library will be loaded JIT via URLClassLoader");
+			return;
+		}
+
+		foreach (var (prefixes, name) in match.ActiveDlls)
+		{
+			Console.WriteLine($"[MinecraftLauncher] ikvmc bundle active: {name} -> {string.Join(", ", prefixes)}");
+		}
+		if (match.JarsToSkip.Count > 0)
+		{
+			Console.WriteLine($"[MinecraftLauncher] suppressing {match.JarsToSkip.Count} JIT'd jar(s) shadowed by active bundles");
+		}
 	}
 
 	private static string ReadAssetIndexId(JsonElement root, string versionId)
@@ -411,11 +433,17 @@ internal static class MinecraftLauncher
 		string libraryDirectoryPath,
 		string versionJarPath,
 		string minecraftOsName,
-		IReadOnlyDictionary<string, bool> featureFlags)
+		IReadOnlyDictionary<string, bool> featureFlags,
+		HashSet<string> jarsToSkip)
 	{
 		var classPath = new List<string>();
 		foreach (var relativePath in ResolveLibraryRelativePaths(root, minecraftOsName, featureFlags))
 		{
+			if (jarsToSkip is not null && jarsToSkip.Contains(relativePath))
+			{
+				continue;
+			}
+
 			var libraryJar = Path.Combine(libraryDirectoryPath, relativePath.Replace('/', Path.DirectorySeparatorChar));
 			if (!File.Exists(libraryJar))
 			{

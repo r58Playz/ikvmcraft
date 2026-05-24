@@ -6,11 +6,6 @@ using System.Runtime.InteropServices.JavaScript;
 
 static partial class IkvmWasm
 {
-    static IkvmClassLoaderDll[] dlls = [
-        (["org.lwjgl."], "ikvmc_lwjgl3.dll"),
-		(["org.apache.logging.log4j"], "ikvmc_log4j.dll"),
-		(["org.objectweb.asm"], "ikvmc_asm.dll"),
-    ];
     static string[] jars = [
         "/assets/lwjgl3-demos.jar",
         "/assets/log4j-demo.jar"
@@ -88,7 +83,8 @@ static partial class IkvmWasm
             File.WriteAllText("/ikvm.properties", "ikvm.home=/ikvm");
 
             // -- ikvm will init after this --
-            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(jars, dlls, []));
+            var bootstrapDlls = IkvmcManifest.LoadEmbedded().AlwaysReplaceDlls();
+            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(jars, bootstrapDlls, []));
 
             java.lang.System.setProperty("org.lwjgl.system.allocator", "system");
             java.lang.System.setProperty("org.lwjgl.system.SharedLibraryExtractPath", "/tmp/lwjgl");
@@ -126,7 +122,6 @@ static partial class IkvmWasm
                 AssetsRootPath = "/libsdl/ikvmcraft/assets/",
                 GameDirectoryPath = "/libsdl/minecraft/",
                 MinecraftOsName = "Emscripten",
-                ManagedAssemblyNames = dlls,
                 AsmTransformers =
                 [
 					RemoveDfuPreloadTransform.Transformer,

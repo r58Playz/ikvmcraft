@@ -1,4 +1,3 @@
-import { createState } from "dreamland/core";
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
 
 const wasm: ModuleAPI = await eval(`import("/_framework/dotnet.js")`);
@@ -7,26 +6,37 @@ let runtime: RuntimeAPI;
 let config: MonoConfig;
 let exports: any;
 
-export let dotnetState = createState({
-	logs: [] as string[]
-});
+export type Log = { color: string; log: string };
+export let loglisteners: ((log: Log) => void)[] = [];
 
-/*
-console.log = new Proxy(console.log, {
-	apply(target, thisArg, argArray) {
-		dotnetState.logs = [...dotnetState.logs, argArray.join(" ")];
-		return Reflect.apply(target, thisArg, argArray);
-	},
-})
-*/
-/*
-(globalThis as any).logs = []
-console.debug = new Proxy(console.debug, {
-	apply(target, thisArg, argArray) {
-		(globalThis as any).logs.push(argArray);
-	},
-})
-*/
+let logs: string[] = [];
+(globalThis as any).logs = logs;
+
+function proxyConsole(name: string, color: string) {
+	// @ts-expect-error ts sucks
+	const old = console[name].bind(console);
+	// @ts-expect-error ts sucks
+	console[name] = (...args) => {
+		let str;
+		try {
+			str = args.join(" ");
+		} catch {
+			str = "<failed to render>";
+		}
+		old(...args);
+		for (const logger of loglisteners) {
+			logger({ color, log: str });
+		}
+		logs.push(str);
+	};
+	return old;
+}
+export const bypassError = proxyConsole("error", "var(--error)");
+export const bypassWarn = proxyConsole("warn", "var(--warning)");
+export const bypassLog = proxyConsole("log", "var(--fg)");
+export const bypassInfo = proxyConsole("info", "var(--info)");
+//export const bypassDebug = proxyConsole("debug", "var(--fg4)");
+(globalThis as any).bypassLog = bypassLog;
 
 let hackfixtimer = -1;
 export async function initDotnet(canvas: HTMLCanvasElement) {
@@ -42,22 +52,30 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		})
 		.withEnvironmentVariable("MONO_SLEEP_ABORT_LIMIT", "20000")
 		//.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
+		//.withEnvironmentVariable("MONO_LOG_MASK", "gc")
 		//.withEnvironmentVariable("MONO_LOG_MASK", "aot")
+		.withEnvironmentVariable("MONO_GC_PARAMS", "nursery-size=16m")
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
 			// accept smaller traces earlier
 			`--jiterpreter-minimum-trace-value=${10}`,
 			`--jiterpreter-minimum-trace-hit-count=${1000}`,
+			`--jiterpreter-back-branch-boost=${980}`, // make sure this is below trace hit count
 			`--jiterpreter-minimum-distance-between-traces=${3}`,
+			`--jiterpreter-trace-monitoring-period=${500}`,
+			`--jiterpreter-trace-monitoring-max-average-penalty=${50}`,
 
 			// increase jit function limits
 			`--jiterpreter-wasm-bytes-limit=${64 * 1024 * 1024}`,
-			`--jiterpreter-max-module-size=${24 * 1024 - 1}`,
+			`--jiterpreter-max-module-size=${64 * 1024 - 1}`,
 			`--jiterpreter-table-size=${32 * 1024}`,
 
 			// print jit stats
 			`--jiterpreter-stats-enabled`,
+
+			//`--no-jiterpreter-jit-call-enabled`,
+			//`--no-jiterpreter-interp-entry-enabled`,
 
 			//`--no-jiterpreter-traces-enabled`
 		])
@@ -84,7 +102,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	await exports.IkvmWasm.PreInit(location.href, [["org.lwjgl.util.Debug", "true"], ["org.lwjgl.util.DebugLoader", "true"], ["java.awt.headless", "true"]]);
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
-	clearInterval(hackfixtimer);
+	setTimeout(() => clearInterval(hackfixtimer), 10 * 1000);
 }
 
 export async function play() {
