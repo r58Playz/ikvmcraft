@@ -10,6 +10,7 @@ internal sealed class MinecraftLaunchOptions
 {
 	public string VersionJsonPath { get; init; } = string.Empty;
 	public string VersionJarPath { get; init; } = string.Empty;
+	public string ClientMappingsPath { get; init; } = string.Empty;
 	public string LibraryDirectoryPath { get; init; } = string.Empty;
 	public string AssetsRootPath { get; init; } = string.Empty;
 	public string GameDirectoryPath { get; init; } = string.Empty;
@@ -33,21 +34,7 @@ internal sealed class MinecraftLaunchOptions
 	public IReadOnlyDictionary<string, string> ExtraLaunchVariables { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyDictionary<string, string> SystemProperties { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyList<IkvmClassLoaderDll> ManagedAssemblyNames { get; init; } = Array.Empty<IkvmClassLoaderDll>();
-
-	/// <summary>
-	/// Raw bytecode transformers applied to every class resolved through the URL
-	/// classpath, in order. Use for full-control byte[] rewrites.
-	/// </summary>
-	public IReadOnlyList<ClassFileTransformer> ClassTransformers { get; init; } = Array.Empty<ClassFileTransformer>();
-
-	/// <summary>
-	/// ASM-based transformers. Each entry pairs a class-name filter with a
-	/// builder that wraps the downstream <c>ClassWriter</c> in a visitor chain.
-	/// Bundled ASM (ikvmc_asm.dll) is on the classpath, so visitor subclasses
-	/// can be written directly in C#.
-	/// </summary>
-	public IReadOnlyList<(Predicate<string> Filter, Func<org.objectweb.asm.ClassWriter, org.objectweb.asm.ClassVisitor> BuildVisitor)> AsmTransformers { get; init; }
-		= Array.Empty<(Predicate<string>, Func<org.objectweb.asm.ClassWriter, org.objectweb.asm.ClassVisitor>)>();
+	public IReadOnlyList<IkvmClassLoaderTransformer> AsmTransformers { get; init; } = Array.Empty<IkvmClassLoaderTransformer>();
 }
 
 internal sealed class MinecraftLaunchPlan
@@ -72,6 +59,7 @@ internal static class MinecraftLauncher
 
 		var versionJsonPath = RequireNonEmpty(options.VersionJsonPath, nameof(options.VersionJsonPath));
 		var versionJarPath = RequireNonEmpty(options.VersionJarPath, nameof(options.VersionJarPath));
+		var clientMappingsPath = RequireNonEmpty(options.ClientMappingsPath, nameof(options.ClientMappingsPath));
 		var libraryDirectoryPath = RequireNonEmpty(options.LibraryDirectoryPath, nameof(options.LibraryDirectoryPath));
 		var assetsRootPath = RequireNonEmpty(options.AssetsRootPath, nameof(options.AssetsRootPath));
 		var gameDirectoryPath = RequireNonEmpty(options.GameDirectoryPath, nameof(options.GameDirectoryPath));
@@ -84,6 +72,11 @@ internal static class MinecraftLauncher
 		if (!File.Exists(versionJarPath))
 		{
 			throw new FileNotFoundException($"Version JAR not found: {versionJarPath}", versionJarPath);
+		}
+
+		if (!File.Exists(clientMappingsPath))
+		{
+			throw new FileNotFoundException($"Client mappings not found: {clientMappingsPath}", clientMappingsPath);
 		}
 
 		if (!Directory.Exists(assetsRootPath))
@@ -154,8 +147,7 @@ internal static class MinecraftLauncher
 
 	public static void LaunchVanilla(MinecraftLaunchOptions options)
 	{
-		LaunchVanillaSetup(options);
-		var plan = BuildLaunchPlan(options);
+		var plan = LaunchVanillaSetup(options);
 		InvokeMain(plan.MainClassName, plan.GameArguments);
 	}
 
@@ -165,7 +157,7 @@ internal static class MinecraftLauncher
 	/// drivers) drive specific classes via Java reflection without running the
 	/// full game launch flow.
 	/// </summary>
-	public static void LaunchVanillaSetup(MinecraftLaunchOptions options)
+	public static MinecraftLaunchPlan LaunchVanillaSetup(MinecraftLaunchOptions options)
 	{
 		if (options is null)
 		{
@@ -174,24 +166,11 @@ internal static class MinecraftLauncher
 
 		var plan = BuildLaunchPlan(options);
 		var managedAssemblyNames = options.ManagedAssemblyNames?.ToArray() ?? [];
+		var transformers = options.AsmTransformers?.ToArray() ?? [];
 
-		var loader = new IkvmClassLoader(plan.ClassPathJars, managedAssemblyNames);
+		Mappings.SetMappings(new MojmapMappings(File.ReadAllText(options.ClientMappingsPath)));
 
-		if (options.ClassTransformers is not null)
-		{
-			foreach (var transformer in options.ClassTransformers)
-			{
-				loader.AddTransformer(transformer);
-			}
-		}
-
-		if (options.AsmTransformers is not null)
-		{
-			foreach (var (filter, buildVisitor) in options.AsmTransformers)
-			{
-				loader.AddAsmTransformer(filter, buildVisitor);
-			}
-		}
+		var loader = new IkvmClassLoader(plan.ClassPathJars, managedAssemblyNames, transformers);
 
 		java.lang.Thread.currentThread().setContextClassLoader(loader);
 
@@ -207,6 +186,9 @@ internal static class MinecraftLauncher
 				SetSystemProperty(pair.Key, pair.Value);
 			}
 		}
+
+
+		return plan;
 	}
 
 	private static string ReadAssetIndexId(JsonElement root, string versionId)

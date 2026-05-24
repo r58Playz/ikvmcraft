@@ -1,4 +1,5 @@
 global using IkvmClassLoaderDll = (string[] Prefixes, string Name);
+global using IkvmClassLoaderTransformer = System.Func<(string[] Prefixes, System.Type Visitor)>;
 
 using System;
 using System.Collections.Generic;
@@ -26,24 +27,15 @@ internal partial class ClassLoaderLogging
     }
 }
 
-/// <summary>
-/// Transforms a class file's bytes before <c>defineClass</c> sees them.
-/// Return the original array (or null) to leave the class untouched.
-/// </summary>
-internal delegate byte[] ClassFileTransformer(string className, byte[] classBytes);
-
 internal sealed class IkvmClassLoader : java.net.URLClassLoader
 {
     private readonly java.lang.ClassLoader systemLoader;
     private readonly List<(string Name, string[] Prefixes, java.lang.ClassLoader Loader)> dllLoaders;
-    private readonly List<ClassFileTransformer> transformers = new();
+	private readonly List<(string[] Prefixes, System.Type Visitor)> classTransformers; 
 
-    public IkvmClassLoader(string[] jars, IkvmClassLoaderDll[] dlls)
+    public IkvmClassLoader(string[] jars, IkvmClassLoaderDll[] dlls, IkvmClassLoaderTransformer[] transformers)
         : base((from jar in jars select new java.net.URL("file", "", jar)).ToArray(), null)
     {
-        // Route cli.IkvmBridge (and any future cli.* helpers added to this
-        // assembly) through the running assembly's class loader so injected
-        // Java bytecode can resolve them.
         var selfLoader = CreateAssemblyClassLoader(typeof(IkvmClassLoader).Assembly);
 
         dllLoaders =
@@ -53,51 +45,22 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
                select (dll.Name, dll.Prefixes, CreateAssemblyClassLoader(Assembly.Load(dll.Name))),
         ];
         systemLoader = java.lang.ClassLoader.getSystemClassLoader();
-    }
 
-    /// <summary>
-    /// Register a bytecode transformer. Transformers run in registration order on
-    /// classes resolved through the URL classpath only (system / DLL-routed
-    /// classes are not visited, since their bytes never pass through here).
-    /// </summary>
-    public IkvmClassLoader AddTransformer(ClassFileTransformer transformer)
-    {
-        if (transformer is not null)
-        {
-            transformers.Add(transformer);
-        }
-        return this;
-    }
-
-    /// <summary>
-    /// Register an ASM-based transformer. <paramref name="buildVisitor"/> receives
-    /// the downstream <c>ClassWriter</c> and returns the head of a visitor chain
-    /// (typically a subclass of <c>org.objectweb.asm.ClassVisitor</c>) that will
-    /// be driven by a <c>ClassReader</c> over the original bytes. Returning the
-    /// writer unchanged is a no-op pass-through.
-    /// </summary>
-    public IkvmClassLoader AddAsmTransformer(
-        Predicate<string> classFilter,
-        Func<org.objectweb.asm.ClassWriter, org.objectweb.asm.ClassVisitor> buildVisitor)
-    {
-        if (buildVisitor is null)
-        {
-            throw new ArgumentNullException(nameof(buildVisitor));
-        }
-
-        return AddTransformer((name, bytes) =>
-        {
-            if (classFilter is not null && !classFilter(name))
-            {
-                return bytes;
-            }
-
-            var reader = new org.objectweb.asm.ClassReader(bytes);
-            var writer = new org.objectweb.asm.ClassWriter(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES);
-            var head = buildVisitor(writer) ?? writer;
-            reader.accept(head, 0);
-            return writer.toByteArray();
-        });
+		classTransformers = new();
+		foreach (var transformerInit in transformers)
+		{
+			var transformer = transformerInit();
+			Type baseType = transformer.Visitor;
+			while (baseType != typeof(System.Object))
+			{
+				baseType = baseType.BaseType;
+				if (baseType == typeof(org.objectweb.asm.ClassVisitor))
+					goto End;
+			}
+			throw new InvalidOperationException("transformer must inherit from ClassVisitor");
+		End:
+			classTransformers.Add(transformer);
+		}
     }
 
     private static java.lang.ClassLoader CreateAssemblyClassLoader(Assembly assembly)
@@ -131,7 +94,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 
     protected override java.lang.Class findClass(string name)
     {
-        if (transformers.Count == 0)
+        if (classTransformers.Count == 0)
         {
             return base.findClass(name);
         }
@@ -161,31 +124,28 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
             stream.close();
         }
 
-        var transformed = false;
-        foreach (var transformer in transformers)
-        {
-            byte[] result;
-            try
-            {
-                result = transformer(name, bytes);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine($"[IkvmClassLoader] transformer threw on '{name}': {e}");
-                throw;
-            }
+		foreach (var transformer in classTransformers)
+		{
+			if (!transformer.Prefixes.Any(x => name.StartsWith(x)))
+				continue;
 
-            if (result is not null && !ReferenceEquals(result, bytes))
-            {
-                bytes = result;
-                transformed = true;
-            }
-        }
+			ClassLoaderLogging.Debug($"[IkvmClassLoader] applying transformer {transformer.Visitor} to '{name}'");
 
-        if (transformed)
-        {
-            ClassLoaderLogging.Debug($"[IkvmClassLoader] transformed '{name}' ({bytes.Length} bytes)");
-        }
+			try
+			{
+				org.objectweb.asm.ClassReader reader = new(bytes);
+				org.objectweb.asm.ClassWriter writer = new(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES | org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
+				var visitor = (org.objectweb.asm.ClassVisitor)Activator.CreateInstance(transformer.Visitor, [name, writer]);
+				reader.accept(visitor, 0);
+
+				bytes = writer.toByteArray();
+			}
+			catch (Exception e)
+			{
+				Console.Error.WriteLine($"[IkvmClassLoader] transformer {transformer.Visitor} failed on '{name}'");
+				throw;
+			}
+		}
 
         return defineClass(name, bytes, 0, bytes.Length);
     }
@@ -220,15 +180,9 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 					if (!prefixes.Any(x => name.StartsWith(x)))
 						continue;
 
-					try {
-						cls = loader.loadClass(name);
-						loadedFrom = $"assembly {assemblyName}";
-						fastpath = true;
-					} catch (Exception e)
-					{
-						Console.Error.WriteLine($"[IkvmClassLoader] '{name}' miss in assembly '{assemblyName}': {e}");
-						throw;
-					}
+					loadedFrom = $"assembly {assemblyName}";
+					cls = loader.loadClass(name);
+					fastpath = true;
                 }
             }
 
@@ -242,31 +196,18 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
                 }
                 catch (java.lang.ClassNotFoundException cnf)
                 {
-                    Console.Error.WriteLine($"[IkvmClassLoader] '{name}' miss in URLClassLoader: {cnf.getClass().getName()}: {cnf.getMessage()}");
+                    Console.WriteLine($"[IkvmClassLoader] '{name}' miss in URLClassLoader: {cnf.getClass().getName()}: {cnf.getMessage()}");
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"[IkvmClassLoader] '{name}' EXCEPTION in URLClassLoader: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                    Console.WriteLine($"[IkvmClassLoader] '{name}' EXCEPTION in URLClassLoader: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 }
             }
 
             if (cls is null)
             {
-                try
-                {
-                    cls = systemLoader.loadClass(name);
-					loadedFrom = "system";
-                }
-                catch (java.lang.ClassNotFoundException cnf)
-                {
-                    Console.Error.WriteLine($"[IkvmClassLoader] '{name}' miss in system loader: {cnf.getClass().getName()}: {cnf.getMessage()}");
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine($"[IkvmClassLoader] '{name}' EXCEPTION in system loader: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-                    throw;
-                }
+				cls = systemLoader.loadClass(name);
+				loadedFrom = "system";
             }
 
             if (resolve)

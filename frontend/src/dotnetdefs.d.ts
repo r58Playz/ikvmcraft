@@ -118,6 +118,7 @@ interface DotnetHostBuilder {
 	 * Note that if you provide resources and don't provide custom configSrc URL, the blazor.boot.json will be downloaded and applied by default.
 	 */
 	withConfig(config: MonoConfig): DotnetHostBuilder;
+	withModuleConfig(config: any): DotnetHostBuilder;
 	/**
 	 * @param configSrc URL to the configuration file. ./blazor.boot.json is a default config file location.
 	 */

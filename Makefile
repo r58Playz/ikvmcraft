@@ -1,12 +1,12 @@
-STATICS_RELEASE=b88ddafa-7409-4f79-8364-fa1c347aa6f6
-IKVM_RELEASE=5dc2f3d4-c852-4725-b4fb-6c8990a54c50
+STATICS_RELEASE=8f047b70-4b32-4bb8-a735-e1fe8dda1ed5
+IKVM_RELEASE=eddbf576-97e4-49fa-8606-f6c6f6f9b8ae
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
 
 statics:
 	mkdir statics
-	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/dotnet.zip -O statics/dotnet.zip
+	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/dotnet-jspi.zip -O statics/dotnet.zip
 	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/emsdk.zip -O statics/emsdk.zip
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/ikvm-wasm-bundle.zip -O statics/ikvm.zip
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libglfw3-ng-gl4es-mt.a -O statics/libglfw3.a

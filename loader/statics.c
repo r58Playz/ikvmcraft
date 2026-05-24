@@ -2702,6 +2702,14 @@ extern void Java_java_awt_ScrollPaneAdjustable_initIDs(int a0, int a1);
 extern void Java_java_awt_Toolkit_initIDs(int a0, int a1);
 extern void Java_java_awt_event_MouseEvent_initIDs(int a0, int a1);
 extern char colorValueID;
+extern void AccelGlyphCache_AddCellInfo(int a0, int a1);
+extern int AccelGlyphCache_AddGlyph(int a0, int a1);
+extern void AccelGlyphCache_Free(int a0);
+extern int AccelGlyphCache_GetCellInfoForCache(int a0, int a1);
+extern int AccelGlyphCache_Init(int a0, int a1, int a2, int a3, int a4);
+extern void AccelGlyphCache_Invalidate(int a0);
+extern void AccelGlyphCache_RemoveAllCellInfos(int a0);
+extern void AccelGlyphCache_RemoveCellInfo(int a0, int a1);
 extern int AWTIsHeadless(void);
 extern void Java_sun_awt_motif_XsessionWMcommand(int a0, int a1, int a2, int a3);
 extern void Java_sun_awt_motif_XsessionWMcommand_New(int a0, int a1);
@@ -7796,6 +7804,7 @@ extern void _ZN10emscripten5glfw37Context12createCursorEPK9GLFWimageii();
 extern void _ZN10emscripten5glfw37Context12createWindowEiiPKcP11GLFWmonitorP10GLFWwindow();
 extern void _ZN10emscripten5glfw37Context12getVideoModeEP11GLFWmonitor();
 extern void _ZN10emscripten5glfw37Context12onTouchStartEP10GLFWwindowPK20EmscriptenTouchEvent();
+extern void _ZN10emscripten5glfw37Context12swapIntervalEi();
 extern void _ZN10emscripten5glfw37Context13destroyCursorEP10GLFWcursor();
 extern void _ZN10emscripten5glfw37Context13destroyWindowEP10GLFWwindow();
 extern void _ZN10emscripten5glfw37Context13getTimerValueEv();
@@ -9191,7 +9200,7 @@ extern void _ZNK10emscripten5glfw37Context10findWindowEP10GLFWwindow();
 extern void _ZNK10emscripten5glfw37Context10getMonitorEP10GLFWwindow();
 extern void _ZNK10emscripten5glfw37Context10getMonitorEP11GLFWmonitor();
 extern void _ZNK10emscripten5glfw37Context11findMonitorEP11GLFWmonitor();
-extern void _ZNK10emscripten5glfw37Context12swapIntervalEi();
+extern void _ZNK10emscripten5glfw37Context11swapBuffersEv();
 extern void _ZNK10emscripten5glfw37Context13getMonitorPosEP11GLFWmonitorPiS4_();
 extern void _ZNK10emscripten5glfw37Context14findTouchPointEPK20EmscriptenTouchEvent();
 extern void _ZNK10emscripten5glfw37Context14getWindowTitleEP10GLFWwindow();
@@ -14043,7 +14052,7 @@ static const jvm_symbol_entry_t _syms_liblcms_so[] = {
     { NULL, NULL }  /* sentinel */
 };
 
-/* Symbol table for "/ikvm/bin/libawt.so" (931 symbols) */
+/* Symbol table for "/ikvm/bin/libawt.so" (939 symbols) */
 static const jvm_symbol_entry_t _syms_libawt_so[] = {
     { "Java_sun_awt_image_BufImgSurfaceData_initIDs", (void*)Java_sun_awt_image_BufImgSurfaceData_initIDs },
     { "Java_sun_awt_image_BufImgSurfaceData_initRaster", (void*)Java_sun_awt_image_BufImgSurfaceData_initRaster },
@@ -14971,6 +14980,14 @@ static const jvm_symbol_entry_t _syms_libawt_so[] = {
     { "Java_java_awt_Toolkit_initIDs", (void*)Java_java_awt_Toolkit_initIDs },
     { "Java_java_awt_event_MouseEvent_initIDs", (void*)Java_java_awt_event_MouseEvent_initIDs },
     { "colorValueID", (void*)&colorValueID },
+    { "AccelGlyphCache_AddCellInfo", (void*)AccelGlyphCache_AddCellInfo },
+    { "AccelGlyphCache_AddGlyph", (void*)AccelGlyphCache_AddGlyph },
+    { "AccelGlyphCache_Free", (void*)AccelGlyphCache_Free },
+    { "AccelGlyphCache_GetCellInfoForCache", (void*)AccelGlyphCache_GetCellInfoForCache },
+    { "AccelGlyphCache_Init", (void*)AccelGlyphCache_Init },
+    { "AccelGlyphCache_Invalidate", (void*)AccelGlyphCache_Invalidate },
+    { "AccelGlyphCache_RemoveAllCellInfos", (void*)AccelGlyphCache_RemoveAllCellInfos },
+    { "AccelGlyphCache_RemoveCellInfo", (void*)AccelGlyphCache_RemoveCellInfo },
     { "AWTIsHeadless", (void*)AWTIsHeadless },
     { "Java_sun_awt_motif_XsessionWMcommand", (void*)Java_sun_awt_motif_XsessionWMcommand },
     { "Java_sun_awt_motif_XsessionWMcommand_New", (void*)Java_sun_awt_motif_XsessionWMcommand_New },
@@ -19843,7 +19860,7 @@ static const jvm_symbol_entry_t _syms_liblwjgl_so[] = {
     { NULL, NULL }  /* sentinel */
 };
 
-/* Symbol table for "/tmp/lwjgl/libglfw.so" (4271 symbols) */
+/* Symbol table for "/tmp/lwjgl/libglfw.so" (4272 symbols) */
 static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "ActivateGLState", (void*)ActivateGLState },
     { "AllSeparators", (void*)&AllSeparators },
@@ -20080,6 +20097,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_ZN10emscripten5glfw37Context12createWindowEiiPKcP11GLFWmonitorP10GLFWwindow", (void*)_ZN10emscripten5glfw37Context12createWindowEiiPKcP11GLFWmonitorP10GLFWwindow },
     { "_ZN10emscripten5glfw37Context12getVideoModeEP11GLFWmonitor", (void*)_ZN10emscripten5glfw37Context12getVideoModeEP11GLFWmonitor },
     { "_ZN10emscripten5glfw37Context12onTouchStartEP10GLFWwindowPK20EmscriptenTouchEvent", (void*)_ZN10emscripten5glfw37Context12onTouchStartEP10GLFWwindowPK20EmscriptenTouchEvent },
+    { "_ZN10emscripten5glfw37Context12swapIntervalEi", (void*)_ZN10emscripten5glfw37Context12swapIntervalEi },
     { "_ZN10emscripten5glfw37Context13destroyCursorEP10GLFWcursor", (void*)_ZN10emscripten5glfw37Context13destroyCursorEP10GLFWcursor },
     { "_ZN10emscripten5glfw37Context13destroyWindowEP10GLFWwindow", (void*)_ZN10emscripten5glfw37Context13destroyWindowEP10GLFWwindow },
     { "_ZN10emscripten5glfw37Context13getTimerValueEv", (void*)_ZN10emscripten5glfw37Context13getTimerValueEv },
@@ -21475,7 +21493,7 @@ static const jvm_symbol_entry_t _syms_libglfw_so[] = {
     { "_ZNK10emscripten5glfw37Context10getMonitorEP10GLFWwindow", (void*)_ZNK10emscripten5glfw37Context10getMonitorEP10GLFWwindow },
     { "_ZNK10emscripten5glfw37Context10getMonitorEP11GLFWmonitor", (void*)_ZNK10emscripten5glfw37Context10getMonitorEP11GLFWmonitor },
     { "_ZNK10emscripten5glfw37Context11findMonitorEP11GLFWmonitor", (void*)_ZNK10emscripten5glfw37Context11findMonitorEP11GLFWmonitor },
-    { "_ZNK10emscripten5glfw37Context12swapIntervalEi", (void*)_ZNK10emscripten5glfw37Context12swapIntervalEi },
+    { "_ZNK10emscripten5glfw37Context11swapBuffersEv", (void*)_ZNK10emscripten5glfw37Context11swapBuffersEv },
     { "_ZNK10emscripten5glfw37Context13getMonitorPosEP11GLFWmonitorPiS4_", (void*)_ZNK10emscripten5glfw37Context13getMonitorPosEP11GLFWmonitorPiS4_ },
     { "_ZNK10emscripten5glfw37Context14findTouchPointEPK20EmscriptenTouchEvent", (void*)_ZNK10emscripten5glfw37Context14findTouchPointEPK20EmscriptenTouchEvent },
     { "_ZNK10emscripten5glfw37Context14getWindowTitleEP10GLFWwindow", (void*)_ZNK10emscripten5glfw37Context14getWindowTitleEP10GLFWwindow },

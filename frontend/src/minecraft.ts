@@ -1,4 +1,5 @@
 const DEFAULT_PRISM_META_BASE_URL = "https://meta.prismlauncher.org/v1/";
+const DEFAULT_MOJANG_VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const DEFAULT_RESOURCE_BASE_URL = "https://resources.download.minecraft.net/";
 const DEFAULT_LIBRARY_BASE_URL = "https://libraries.minecraft.net/";
 const DEFAULT_OPFS_ROOT_DIRECTORY = "ikvmcraft";
@@ -59,6 +60,21 @@ interface PrismMinecraftVersion {
 	libraries?: PrismMinecraftLibrary[];
 }
 
+interface MojangVersionListEntry {
+	id: string;
+	url: string;
+}
+
+interface MojangVersionList {
+	versions: MojangVersionListEntry[];
+}
+
+interface MojangVersionManifest {
+	downloads?: {
+		client_mappings?: DownloadInfo;
+	};
+}
+
 interface PrismMinecraftLibrary {
 	name?: string;
 	downloads?: {
@@ -96,6 +112,7 @@ interface IntegrityExpectation {
 
 export interface DownloadMinecraftVersionToOpfsOptions {
 	prismMetaBaseUrl?: string;
+	mojangVersionManifestUrl?: string;
 	resourceBaseUrl?: string;
 	libraryBaseUrl?: string;
 	opfsRootDirectory?: string;
@@ -108,6 +125,7 @@ export interface DownloadMinecraftVersionToOpfsResult {
 	version: string;
 	versionJsonPath: string;
 	clientJarPath: string;
+	clientMappingsPath: string | null;
 	libraryCount: number;
 	librariesDirectoryPath: string;
 	assetIndexId: string;
@@ -120,6 +138,8 @@ export interface IsMinecraftVersionDownloadedOptions {
 	opfsRootDirectory?: string;
 	verifyAssetObjects?: boolean;
 	verifyHashes?: boolean;
+	verifyClientMappings?: boolean;
+	mojangVersionManifestUrl?: string;
 	minecraftOsName?: string;
 	maxConcurrentAssetChecks?: number;
 }
@@ -525,6 +545,20 @@ function resolveClientDownload(versionManifest: PrismMinecraftVersion): Download
 	return versionManifest.downloads?.client ?? versionManifest.mainJar?.downloads?.artifact;
 }
 
+async function resolveMojangClientMappingsDownload(
+	version: string,
+	mojangVersionManifestUrl: string,
+): Promise<DownloadInfo | null> {
+	const list = await fetchJson<MojangVersionList>(mojangVersionManifestUrl);
+	const entry = list.versions?.find((candidate) => candidate.id === version);
+	if (entry === undefined) {
+		return null;
+	}
+
+	const manifest = await fetchJson<MojangVersionManifest>(entry.url);
+	return manifest.downloads?.client_mappings ?? null;
+}
+
 function shouldIncludeLibrary(rules: MinecraftRule[] | undefined, minecraftOsName: string): boolean {
 	if (rules === undefined || rules.length === 0) {
 		return true;
@@ -648,6 +682,7 @@ export async function downloadMinecraftVersionToOpfs(
 	options: DownloadMinecraftVersionToOpfsOptions = {},
 ): Promise<DownloadMinecraftVersionToOpfsResult> {
 	const prismMetaBaseUrl = ensureTrailingSlash(options.prismMetaBaseUrl ?? DEFAULT_PRISM_META_BASE_URL);
+	const mojangVersionManifestUrl = options.mojangVersionManifestUrl ?? DEFAULT_MOJANG_VERSION_MANIFEST_URL;
 	const resourceBaseUrl = ensureTrailingSlash(options.resourceBaseUrl ?? DEFAULT_RESOURCE_BASE_URL);
 	const libraryBaseUrl = ensureTrailingSlash(options.libraryBaseUrl ?? DEFAULT_LIBRARY_BASE_URL);
 	const opfsRootDirectory = ensureSafePathSegment(
@@ -719,6 +754,18 @@ export async function downloadMinecraftVersionToOpfs(
 	const clientJarPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.jar`;
 	await writeFileToOpfs(root, clientJarPath, clientJarData);
 
+	const clientMappingsDownload = await resolveMojangClientMappingsDownload(resolvedVersion, mojangVersionManifestUrl);
+	let clientMappingsPath: string | null = null;
+	if (clientMappingsDownload !== null) {
+		const mappingsData = await downloadBinary(
+			clientMappingsDownload.url,
+			clientMappingsDownload,
+			`client mappings '${resolvedVersion}'`,
+		);
+		clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
+		await writeFileToOpfs(root, clientMappingsPath, mappingsData);
+	}
+
 	const assetIndexData = await downloadBinary(
 		assetIndexDownload.url,
 		assetIndexDownload,
@@ -746,6 +793,7 @@ export async function downloadMinecraftVersionToOpfs(
 		version: resolvedVersion,
 		versionJsonPath,
 		clientJarPath,
+		clientMappingsPath,
 		libraryCount: libraries.length,
 		librariesDirectoryPath: `${opfsRootDirectory}/libraries`,
 		assetIndexId,
@@ -767,6 +815,8 @@ export async function isMinecraftVersionDownloaded(
 	const minecraftOsName = normalizeMinecraftOsName(options.minecraftOsName);
 	const verifyAssetObjects = options.verifyAssetObjects ?? true;
 	const verifyHashes = options.verifyHashes ?? false;
+	const verifyClientMappings = options.verifyClientMappings ?? true;
+	const mojangVersionManifestUrl = options.mojangVersionManifestUrl ?? DEFAULT_MOJANG_VERSION_MANIFEST_URL;
 	const maxConcurrentAssetChecks = ensurePositiveInteger(
 		options.maxConcurrentAssetChecks ?? DEFAULT_MAX_CONCURRENT_ASSET_CHECKS,
 		DEFAULT_MAX_CONCURRENT_ASSET_CHECKS,
@@ -837,6 +887,47 @@ export async function isMinecraftVersionDownloaded(
 	} catch (error) {
 		warnDownloadCheckFailure(`Client jar check failed for '${resolvedVersion}'.`, error);
 		return false;
+	}
+
+	if (verifyClientMappings) {
+		let clientMappingsDownload: DownloadInfo | null = null;
+		let clientMappingsLookupFailed = false;
+		try {
+			clientMappingsDownload = await resolveMojangClientMappingsDownload(resolvedVersion, mojangVersionManifestUrl);
+		} catch (error) {
+			clientMappingsLookupFailed = true;
+			warnDownloadCheckFailure(
+				`Could not consult Mojang manifest to verify client mappings for '${resolvedVersion}' — skipping mappings check.`,
+				error,
+			);
+		}
+
+		if (clientMappingsDownload !== null) {
+			const clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
+			try {
+				if (verifyHashes) {
+					const mappingsData = await readFileArrayBuffer(root, clientMappingsPath);
+					await assertIntegrity(
+						mappingsData,
+						{ sha1: clientMappingsDownload.sha1, size: clientMappingsDownload.size },
+						`client mappings '${resolvedVersion}'`,
+					);
+				} else if (!(await fileExists(root, clientMappingsPath))) {
+					warnDownloadCheckFailure(`Missing client mappings at '${clientMappingsPath}'.`);
+					return false;
+				}
+			} catch (error) {
+				warnDownloadCheckFailure(`Client mappings check failed for '${resolvedVersion}'.`, error);
+				return false;
+			}
+		} else if (!clientMappingsLookupFailed) {
+			const clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
+			if (await fileExists(root, clientMappingsPath)) {
+				warnDownloadCheckFailure(
+					`Stale client.txt at '${clientMappingsPath}': Mojang manifest does not declare client mappings for '${resolvedVersion}'.`,
+				);
+			}
+		}
 	}
 
 	let assetIndexId: string;

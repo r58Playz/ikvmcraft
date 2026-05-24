@@ -58,12 +58,6 @@ static partial class IkvmWasm
             Emscripten.MountFetchFile(0, "/ikvm/bin/libnio.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libnet.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libmanagement.so");
-            // AWT stack — Toolkit.<clinit> does System.loadLibrary("awt"),
-            // which goes through ClassLoader.loadLibrary's file.exists() gate
-            // before reaching JVM_LoadLibrary. The static-lib registry in
-            // loader/statics.c maps these paths back to compiled .a's, but
-            // the path strings must also resolve as existing files for the
-            // pre-load existence check to pass.
             Emscripten.MountFetchFile(0, "/ikvm/bin/libawt.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libfontmanager.so");
             Emscripten.MountFetchFile(0, "/ikvm/bin/libmlib_image.so");
@@ -94,7 +88,7 @@ static partial class IkvmWasm
             File.WriteAllText("/ikvm.properties", "ikvm.home=/ikvm");
 
             // -- ikvm will init after this --
-            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(jars, dlls));
+            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(jars, dlls, []));
 
             java.lang.System.setProperty("org.lwjgl.system.allocator", "system");
             java.lang.System.setProperty("org.lwjgl.system.SharedLibraryExtractPath", "/tmp/lwjgl");
@@ -127,6 +121,7 @@ static partial class IkvmWasm
             {
                 VersionJsonPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.json",
                 VersionJarPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.jar",
+				ClientMappingsPath = "/libsdl/ikvmcraft/versions/1.16.1/client.txt",
                 LibraryDirectoryPath = "/libsdl/ikvmcraft/libraries/",
                 AssetsRootPath = "/libsdl/ikvmcraft/assets/",
                 GameDirectoryPath = "/libsdl/minecraft/",
@@ -134,55 +129,18 @@ static partial class IkvmWasm
                 ManagedAssemblyNames = dlls,
                 AsmTransformers =
                 [
-                    MinecraftRunLoopTransform.AsTransformer(MinecraftRunLoopTransform.Obfuscated_1_16_1),
-                    .. NettyBackendSwapTransform.AsTransformers(NettyBackendSwapTransform.Obfuscated_1_16_1),
-                    LazyDfuTransform.AsTransformer(),
-                ],
+					RemoveDfuPreloadTransform.Transformer,
+					SwapNettyBackendTransform.Transformer
+				],
             });
 
             return Task.CompletedTask;
         }
         catch (Exception e)
         {
-            var emLoopStarted = UnwrapEmLoopStarted(e);
-            if (emLoopStarted is not null)
-            {
-                Console.WriteLine("[IKVM] em-loop registered; returning task for JS to await");
-                return emLoopStarted.EmLoopTask;
-            }
-
             ExceptionLogging.WriteException(e, "[IKVM] Run failed");
             return Task.FromException(e);
         }
-    }
-
-    /// <summary>
-    /// Walk the cause chain looking for the em-loop marker. We have to check
-    /// both <see cref="Exception.InnerException"/> (.NET side) and
-    /// <c>java.lang.Throwable.getCause()</c> (Java side) — IKVM does not
-    /// reliably mirror Java's cause into .NET's InnerException, so an
-    /// <c>InvocationTargetException</c> wrapping our marker would otherwise
-    /// look like a leaf to a plain InnerException walk.
-    /// </summary>
-    private static IkvmEmLoopStarted UnwrapEmLoopStarted(Exception ex)
-    {
-        var seen = new System.Collections.Generic.HashSet<Exception>(System.Collections.Generic.ReferenceEqualityComparer.Instance);
-        var current = ex;
-        while (current is not null && seen.Add(current))
-        {
-            if (current is IkvmEmLoopStarted started)
-            {
-                return started;
-            }
-
-            Exception next = current.InnerException;
-            if (next is null && current is java.lang.Throwable throwable)
-            {
-                next = throwable.getCause() as Exception;
-            }
-            current = next;
-        }
-        return null;
     }
 
     [JSExport]
@@ -203,131 +161,6 @@ static partial class IkvmWasm
         catch (Exception e)
         {
             ExceptionLogging.WriteException(e, "[IKVM] Run failed");
-            return Task.FromException(e);
-        }
-    }
-
-    /// <summary>
-    /// Run Minecraft's Main.main(String[]) with the standard launch arguments
-    /// computed from the version JSON, but call it via reflection from a
-    /// controlled triage entry so we can interleave with other ReflectInvoke
-    /// calls. Mirrors what MinecraftLauncher.LaunchVanilla -> InvokeMain does.
-    /// </summary>
-    [JSExport]
-    internal static Task RunMinecraftMain()
-    {
-        try
-        {
-            Console.WriteLine($"[IKVM] running Main.main via triage path");
-            var options = new MinecraftLaunchOptions
-            {
-                VersionJsonPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.json",
-                VersionJarPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.jar",
-                LibraryDirectoryPath = "/libsdl/ikvmcraft/libraries/",
-                AssetsRootPath = "/libsdl/ikvmcraft/assets/",
-                GameDirectoryPath = "/libsdl/minecraft/",
-                MinecraftOsName = "Emscripten",
-                ManagedAssemblyNames = dlls,
-            };
-            var plan = MinecraftLauncher.BuildLaunchPlan(options);
-
-            var classLoader = java.lang.Thread.currentThread().getContextClassLoader();
-            var mainClass = java.lang.Class.forName(plan.MainClassName, true, classLoader);
-            var stringArrayClass = java.lang.Class.forName("[Ljava.lang.String;");
-            var mainMethod = mainClass.getMethod("main", new[] { stringArrayClass });
-            mainMethod.invoke(null, new object[] { plan.GameArguments });
-            return Task.CompletedTask;
-        }
-        catch (Exception e)
-        {
-            ExceptionLogging.WriteException(e, "[IKVM] RunMinecraftMain failed");
-            return Task.FromException(e);
-        }
-    }
-
-    /// <summary>
-    /// Set up the Minecraft classpath / native paths / system properties without
-    /// running the launcher main. After this returns, the JS side can call
-    /// <see cref="ReflectInvoke"/> repeatedly to drive specific Java classes by
-    /// name and observe which one triggers the bug we're chasing.
-    /// </summary>
-    [JSExport]
-    internal static Task SetupMinecraft()
-    {
-        try
-        {
-            Console.WriteLine($"[IKVM] setting up mc 1.16.1 classpath (no main)");
-
-            MinecraftLauncher.LaunchVanillaSetup(new()
-            {
-                VersionJsonPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.json",
-                VersionJarPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.jar",
-                LibraryDirectoryPath = "/libsdl/ikvmcraft/libraries/",
-                AssetsRootPath = "/libsdl/ikvmcraft/assets/",
-                GameDirectoryPath = "/libsdl/minecraft/",
-                MinecraftOsName = "Emscripten",
-                ManagedAssemblyNames = dlls,
-            });
-
-            return Task.CompletedTask;
-        }
-        catch (Exception e)
-        {
-            ExceptionLogging.WriteException(e, "[IKVM] SetupMinecraft failed");
-            return Task.FromException(e);
-        }
-    }
-
-    /// <summary>
-    /// Resolve a Java class by FQN and call a static method on it via reflection.
-    /// Useful for narrowing down which class triggers a bug — call from JS with
-    /// e.g. <c>("net.minecraft.Util", "<clinit>", [])</c> to force-init that
-    /// specific class. Empty <paramref name="methodName"/> just loads/inits the
-    /// class without invoking any method.
-    ///
-    /// Note: arguments are limited to strings (sufficient for triage; extend if
-    /// needed). Method must be static and take string parameters in the same
-    /// order as <paramref name="argsObj"/>'s string entries.
-    /// </summary>
-    [JSExport]
-    internal static Task ReflectInvoke(string className, string methodName, JSObject argsObj)
-    {
-        try
-        {
-            Console.WriteLine($"[IKVM] reflect-invoke {className}.{(string.IsNullOrEmpty(methodName) ? "<load>" : methodName)}");
-
-            var classLoader = java.lang.Thread.currentThread().getContextClassLoader();
-
-            // Just loading & forcing class-init is the most useful case: pass
-            // initialize=true so the .cctor runs before we return.
-            var clazz = java.lang.Class.forName(className, true, classLoader);
-
-            if (string.IsNullOrEmpty(methodName))
-            {
-                Console.WriteLine($"[IKVM] reflect-invoke loaded {className}");
-                return Task.CompletedTask;
-            }
-
-            // Convert JS string-array → Java String[] / parameter Class[].
-            int argLen = argsObj == null ? 0 : argsObj.GetPropertyAsInt32("length");
-            var paramTypes = new java.lang.Class[argLen];
-            var argValues = new object[argLen];
-            var stringClass = java.lang.Class.forName("java.lang.String");
-            for (int i = 0; i < argLen; i++)
-            {
-                paramTypes[i] = stringClass;
-                argValues[i] = argsObj.GetPropertyAsString(i.ToString()) ?? string.Empty;
-            }
-
-            var method = clazz.getDeclaredMethod(methodName, paramTypes);
-            method.setAccessible(true);
-            var result = method.invoke(null, argValues);
-            Console.WriteLine($"[IKVM] reflect-invoke {className}.{methodName} -> {(result == null ? "<null>" : result.ToString())}");
-            return Task.CompletedTask;
-        }
-        catch (Exception e)
-        {
-            ExceptionLogging.WriteException(e, $"[IKVM] reflect-invoke {className}.{methodName} failed");
             return Task.FromException(e);
         }
     }
