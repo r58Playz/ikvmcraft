@@ -1,5 +1,8 @@
 # ikvmcraft
 
+> [!NOTE]
+> no support will be provided. i am currently working on this project and it is not ready. the only reason i made the repository public is to share with a couple people.
+
 ![image](assets/preview.png)
 ![image](assets/preview2.png)
 
