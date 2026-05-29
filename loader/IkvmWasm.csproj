@@ -38,9 +38,9 @@
 		<WebAssemblyEnableStreamingResponse>true</WebAssemblyEnableStreamingResponse>
 
 		<!-- MAXIMUM_MEMORY is 65535 wasm pages -->
-		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT</EmccExtraLDFlags>
+		<EmccExtraLDFlags>-sWASMFS -sMAXIMUM_MEMORY=4294901760 -sMALLOC=mimalloc -sOFFSCREENCANVAS_SUPPORT -I$(MSBuildProjectDirectory)/../statics/mojoAL/AL -I$(MSBuildProjectDirectory)/../statics/SDL/include</EmccExtraLDFlags>
 		<EmccExtraLDFlags>$(EmccExtraLDFlags) -sMIN_FIREFOX_VERSION=2147483647 -sMIN_SAFARI_VERSION=2147483647 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2 -sFULL_ES3 -sFULL_ES2</EmccExtraLDFlags>
-		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/../statics/lib_emscripten_glfw3.js -lopenal</EmccExtraLDFlags>
+		<EmccExtraLDFlags>$(EmccExtraLDFlags) --js-library $(MSBuildProjectDirectory)/../statics/lib_emscripten_glfw3.js</EmccExtraLDFlags>
 		<EmccLinkOptimizationFlag>-O3</EmccLinkOptimizationFlag>
 		<EmccCompileOptimizationFlag>-O3</EmccCompileOptimizationFlag>
 		<EmccEnvironment>web,worker</EmccEnvironment>
@@ -201,11 +201,12 @@
 		<NativeFileReference Include="statics.c" />
 		<NativeFileReference Include="icalls.c" />
 
+		<NativeFileReference Include="..\statics\SDL3.a" />
 		<NativeFileReference Include="..\statics\libglfw3.a" />
 		<NativeFileReference Include="..\statics\liblwjgl3.a" />
 		<NativeFileReference Include="..\statics\libffi.a" />
 		<NativeFileReference Include="..\statics\liblwjgl_stb.a" />
-		<NativeFileReference Include="..\statics\liblwjgl_openal.a" />
+		<NativeFileReference Include="..\statics\libopenal.a" />
 
 		<!-- trick mono wasm into letting the load through -->
 		<_WasmPInvokeModules Include="/ikvm/bin/libjvm.so" />
