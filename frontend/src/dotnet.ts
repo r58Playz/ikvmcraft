@@ -55,7 +55,6 @@ function proxyConsole(name: string, color: string) {
 		} catch {
 			str = "<failed to render>";
 		}
-		if (str.includes("maybeExit:") || str.includes("runtimeKeepalive"))return;
 		old(...args);
 		for (const logger of loglisteners) {
 			logger({ color, log: str });
@@ -68,11 +67,21 @@ export const bypassError = proxyConsole("error", "var(--error)");
 export const bypassWarn = proxyConsole("warn", "var(--warning)");
 export const bypassLog = proxyConsole("log", "var(--fg)");
 export const bypassInfo = proxyConsole("info", "var(--info)");
-//export const bypassDebug = proxyConsole("debug", "var(--fg4)");
+export const bypassDebug = proxyConsole("debug", "var(--fg4)");
 (globalThis as any).bypassLog = bypassLog;
 
-let hackfixtimer = -1;
+export function getDlls(): (readonly [string, string])[] {
+	const config = (wasm.dotnet as any).instance.config;
+	const resources = [
+		...(config.resources?.coreAssembly || []),
+		...(config.resources?.assembly || []),
+	];
+	return resources.map((x) => [x.name, x.virtualPath] as const);
+}
+
 export async function initDotnet(canvas: HTMLCanvasElement) {
+	// emscripten proxy hackfix number 39847232303
+	(globalThis as any).Atomics.waitAsync = undefined;
 	console.time("dotnet ");
 	//(globalThis as any).GLFW3_DEBUG = true;
 	runtime = await dotnet
@@ -80,7 +89,6 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		.withModuleConfig({
 			onRuntimeInitialized(Module: any) {
 				(globalThis as any).wasm = { Module, FS: Module.FS };
-				hackfixtimer = setInterval(() => Module.checkMailbox(), 4);
 			}
 		})
 		.withEnvironmentVariable("MONO_SLEEP_ABORT_LIMIT", "20000")
@@ -91,6 +99,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
+			
 			// accept smaller traces earlier
 			`--jiterpreter-minimum-trace-value=${10}`,
 			`--jiterpreter-minimum-trace-hit-count=${1000}`,
@@ -106,6 +115,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 			// print jit stats
 			`--jiterpreter-stats-enabled`,
+			
 
 			//`--no-jiterpreter-jit-call-enabled`,
 			//`--no-jiterpreter-interp-entry-enabled`,
@@ -132,15 +142,14 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	};
 	console.debug("PreInit...");
 	await runtime.runMain();
-	await exports.IkvmWasm.PreInit(location.href, [["org.lwjgl.util.Debug", "true"], ["org.lwjgl.util.DebugLoader", "true"], ["java.awt.headless", "true"]]);
+	await exports.IkvmWasm.PreInit(location.href, getDlls().map((x) => `${x[0]}|${x[1]}`), [["org.lwjgl.util.Debug", "true"], ["org.lwjgl.util.DebugLoader", "true"], ["java.awt.headless", "true"]]);
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
-	setTimeout(() => clearInterval(hackfixtimer), 10 * 1000);
 }
 
-export async function play() {
+export async function play(version: string) {
 	console.debug("Run...");
-	await exports.IkvmWasm.Run()
+	await exports.IkvmWasm.Run(version)
 	//await exports.IkvmWasm.RunJar("/assets/log4j-demo.jar")
 	//await exports.IkvmWasm.RunJar("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.game.VoxelGameGL");
 	//await exports.IkvmWasm.RunJar("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.opengl.camera.FreeCameraDemo");

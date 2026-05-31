@@ -179,6 +179,7 @@ internal static class MinecraftLauncher
 		java.lang.Thread.currentThread().setContextClassLoader(loader);
 
 		SetSystemProperty("java.library.path", options.NativesDirectoryPath);
+		SetSystemProperty("java.class.path", string.Join(java.io.File.pathSeparator, plan.ClassPathJars));
 		SetSystemProperty("org.lwjgl.system.allocator", "system");
 		SetSystemProperty("org.lwjgl.system.SharedLibraryExtractPath", options.NativesDirectoryPath);
 		SetSystemProperty("org.lwjgl.librarypath", options.NativesDirectoryPath);

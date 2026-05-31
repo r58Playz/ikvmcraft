@@ -1,16 +1,19 @@
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 
+struct Dll
+{
+    public string RealName;
+    public string MappedName;
+}
+
 static partial class IkvmWasm
 {
-    static string[] jars = [
-        "/assets/lwjgl3-demos.jar",
-        "/assets/log4j-demo.jar"
-    ];
-
     [DllImport("Emscripten")]
     static internal extern void ikvm_gl_init();
 
@@ -40,8 +43,25 @@ static partial class IkvmWasm
         return result;
     }
 
+    private static void MountDlls(string root, string[] rawDlls)
+    {
+        IEnumerable<Dll> dlls = rawDlls.Select(x =>
+        {
+            var split = x.Split('|');
+            return new Dll() { RealName = split[0], MappedName = split[1] };
+        });
+
+        Directory.CreateDirectory("/dlls");
+		Emscripten.MountFetch(1, root + "_framework/", "/fetchdlls/");
+        foreach (var dll in dlls)
+        {
+            Emscripten.MountFetchFile(1, $"/fetchdlls/{dll.RealName}");
+			File.CreateSymbolicLink($"/dlls/{dll.MappedName}", $"/fetchdlls/{dll.RealName}");
+        }
+    }
+
     [JSExport]
-    internal static Task PreInit(string fetchbase, JSObject props)
+    internal static Task PreInit(string fetchbase, string[] rawDlls, JSObject props)
     {
         try
         {
@@ -64,9 +84,7 @@ static partial class IkvmWasm
             Emscripten.MountFetchFile(0, "/ikvm/lib/content-types.properties");
             Emscripten.MountFetchFile(0, "/ikvm/lib/logging.properties");
 
-            Emscripten.MountFetch(1, fetchbase + "/assets", "/assets");
-            Emscripten.MountFetchFile(1, "/assets/lwjgl3-demos.jar");
-            Emscripten.MountFetchFile(1, "/assets/log4j-demo.jar");
+			MountDlls(fetchbase, rawDlls);
 
         	ikvm_gl_init();
 
@@ -84,7 +102,7 @@ static partial class IkvmWasm
 
             // -- ikvm will init after this --
             var bootstrapDlls = IkvmcManifest.LoadEmbedded().AlwaysReplaceDlls();
-            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader(jars, bootstrapDlls, []));
+            java.lang.Thread.currentThread().setContextClassLoader(new IkvmClassLoader([], bootstrapDlls, []));
 
             java.lang.System.setProperty("org.lwjgl.system.allocator", "system");
             java.lang.System.setProperty("org.lwjgl.system.SharedLibraryExtractPath", "/tmp/lwjgl");
@@ -107,17 +125,17 @@ static partial class IkvmWasm
     }
 
     [JSExport]
-    internal static Task Run()
+    internal static Task Run(string version)
     {
         try
         {
-            Console.WriteLine($"[IKVM] running mc 1.16.1");
+            Console.WriteLine($"[IKVM] running mc {version}");
 
             MinecraftLauncher.LaunchVanilla(new()
             {
-                VersionJsonPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.json",
-                VersionJarPath = "/libsdl/ikvmcraft/versions/1.16.1/1.16.1.jar",
-				ClientMappingsPath = "/libsdl/ikvmcraft/versions/1.16.1/client.txt",
+                VersionJsonPath = $"/libsdl/ikvmcraft/versions/{version}/version.json",
+                VersionJarPath = $"/libsdl/ikvmcraft/versions/{version}/client.jar",
+				ClientMappingsPath = $"/libsdl/ikvmcraft/versions/{version}/client.txt",
                 LibraryDirectoryPath = "/libsdl/ikvmcraft/libraries/",
                 AssetsRootPath = "/libsdl/ikvmcraft/assets/",
                 GameDirectoryPath = "/libsdl/minecraft/",
@@ -125,7 +143,7 @@ static partial class IkvmWasm
                 AsmTransformers =
                 [
 					RemoveDfuPreloadTransform.Transformer,
-					SwapNettyBackendTransform.Transformer
+					SwapNettyBackendTransform.Transformer,
 				],
             });
 

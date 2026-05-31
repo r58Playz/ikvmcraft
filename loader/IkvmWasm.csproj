@@ -50,6 +50,7 @@
 		<MonoAotCrossDir>$(MicrosoftNetCoreAppRuntimePackDir)\cross</MonoAotCrossDir>
 		<EmsdkRoot>$(MSBuildProjectDirectory)\..\statics\emsdk\</EmsdkRoot>
 		<WasmCachePath>$(EmsdkRoot)\emscripten\cache\</WasmCachePath>
+		<EmscriptenCacheSdkCacheDir>$(WasmCachePath)</EmscriptenCacheSdkCacheDir>
 		<__EmscriptenSdkToolsPath>$(EmsdkRoot)</__EmscriptenSdkToolsPath>
 		<__EmscriptenUpstreamBinPath>$(EmsdkRoot)bin/</__EmscriptenUpstreamBinPath>
 		<__EmscriptenUpstreamEmscriptenPath>$(EmsdkRoot)emscripten/</__EmscriptenUpstreamEmscriptenPath>
@@ -230,6 +231,7 @@
 			<EmscriptenUpstreamBinPath>$(__EmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
 			<EmscriptenUpstreamEmscriptenPath>$(__EmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
 			<EmscriptenNodeToolsPath>$(__EmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<EmscriptenCacheSdkCacheDir>$(WasmCachePath)</EmscriptenCacheSdkCacheDir>
 			<WasmClang>$(__WasmClang)</WasmClang>
 		</PropertyGroup>
 		<ItemGroup>
@@ -247,6 +249,7 @@
 			<EmscriptenUpstreamBinPath>$(__EmscriptenUpstreamBinPath)</EmscriptenUpstreamBinPath>
 			<EmscriptenUpstreamEmscriptenPath>$(__EmscriptenUpstreamEmscriptenPath)</EmscriptenUpstreamEmscriptenPath>
 			<EmscriptenNodeToolsPath>$(__EmscriptenNodeToolsPath)</EmscriptenNodeToolsPath>
+			<EmscriptenCacheSdkCacheDir>$(WasmCachePath)</EmscriptenCacheSdkCacheDir>
 			<WasmClang>$(__WasmClang)</WasmClang>
 		</PropertyGroup>
 		<ItemGroup>

@@ -52,6 +52,11 @@ export default defineConfig({
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/proxy\/maven-central-alt/, ""),
 			},
+			"/proxy/maven-fabricmc": {
+				target: "https://maven.fabricmc.net",
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/proxy\/maven-fabricmc/, ""),
+			},
 		},
 		port: 5021,
 		strictPort: true,

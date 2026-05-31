@@ -1,7 +1,7 @@
 import { css, FC } from "dreamland/core";
 import "./style.css";
 import { loglisteners, initDotnet, play } from "./dotnet";
-import { downloadMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
+import { downloadFabricMinecraftVersionToOpfs, downloadMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
 
 function LogView(this: FC<{ scrolling: boolean }>) {
 	const create = (color: string, log: string) => {
@@ -37,10 +37,6 @@ LogView.css = `
 	flex: 1;
 	font-family: var(--font-mono);
 
-	.log {
-		word-break: break-all;
-	}
-
 	::-webkit-scrollbar {
 		width: 10px;
 	}
@@ -54,14 +50,14 @@ LogView.css = `
 
 function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 	this.cx.mount = async () => {
-		if (!(await isMinecraftVersionDownloaded("1.16.1", { verifyHashes: true })))
-			await downloadMinecraftVersionToOpfs("1.16.1");
+		if (!(await isMinecraftVersionDownloaded("1.16.1-fabric-0.19.2", { verifyHashes: true })))
+			await downloadFabricMinecraftVersionToOpfs("1.16.1", { loaderVersion: "0.19.2" });
 		else
-			console.debug("downlaodead 1.16.1 already");
+			console.debug("downlaodead 1.16.1 fabric 0.19.2 already");
 
 		await initDotnet(this.canvas);
 
-		await play();
+		await play("1.16.1-fabric-0.19.2");
 	};
 
 	return (

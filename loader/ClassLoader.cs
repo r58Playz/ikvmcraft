@@ -5,30 +5,56 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 using IKVM.Runtime;
 
-internal partial class ClassLoaderLogging
+class AssemblyURLConnection : java.net.JarURLConnection
 {
-    [JSImport("globalThis.console.debug")]
-    private static partial void DebugLog(string message);
+	private readonly java.net.URL JarUrl;
 
-    public static void Debug(string message)
-    {
-        try
-        {
-            DebugLog(message);
-        }
-        catch
-        {
-            // Fallback to Console if JS interop fails
-            Console.WriteLine(message);
-        }
-    }
+	public AssemblyURLConnection(java.net.URL url) : base(new("jar:" + url + "!/"))
+	{
+		JarUrl = url;
+	}
+
+    public override java.net.URL getJarFileURL() => JarUrl;
+	public override java.util.jar.JarFile getJarFile() => null;
+    public override java.util.jar.JarEntry getJarEntry() => null;
+    public override void connect() { }
+}
+
+class AssemblyURLStreamHandler : java.net.URLStreamHandler
+{
+	protected override java.net.URLConnection openConnection(java.net.URL url)
+	{
+		var name = url.getHost();
+		var asm = $"/dlls/{name}.dll";
+		return new AssemblyURLConnection(new("file", "", asm));
+	}
+}
+
+class IkvmURLStreamHandlerFactory : java.net.URLStreamHandlerFactory
+{
+	public java.net.URLStreamHandler createURLStreamHandler(String protocol)
+	{
+		if (protocol == "assembly:")
+			return new AssemblyURLStreamHandler();
+
+		return null;
+	}
 }
 
 internal sealed class IkvmClassLoader : java.net.URLClassLoader
 {
+	static IkvmClassLoader()
+	{
+		java.net.URL.setURLStreamHandlerFactory(new IkvmURLStreamHandlerFactory());
+	}
+
+	[DllImport("Emscripten")]
+	private static extern void classloader_debug([MarshalAs(UnmanagedType.LPUTF8Str)] string log);
+
     private readonly java.lang.ClassLoader systemLoader;
     private readonly List<(string Name, string[] Prefixes, java.lang.ClassLoader Loader)> dllLoaders;
 	private readonly List<(string[] Prefixes, System.Type Visitor)> classTransformers; 
@@ -92,6 +118,29 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
         return typedLoader;
     }
 
+	private void MaybeDefinePackage(string name)
+	{
+		int lastDot = name.LastIndexOf(".");
+		if (lastDot < 0)
+			return;
+
+		string packageName = name[..lastDot];
+
+		if (getPackage(packageName) == null)
+		{
+			definePackage(
+				packageName,
+				null, // specTitle
+				null, // specVersion
+				null, // specVendor
+				null, // implTitle
+				null, // implVersion
+				null, // implVendor
+				null  // sealBase
+			);
+		}
+	}
+
     protected override java.lang.Class findClass(string name)
     {
         if (classTransformers.Count == 0)
@@ -129,7 +178,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 			if (!transformer.Prefixes.Any(x => name.StartsWith(x)))
 				continue;
 
-			ClassLoaderLogging.Debug($"[IkvmClassLoader] applying transformer {transformer.Visitor} to '{name}'");
+			classloader_debug($"[IkvmClassLoader] applying transformer {transformer.Visitor} to '{name}'");
 
 			try
 			{
@@ -147,8 +196,41 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 			}
 		}
 
-        return defineClass(name, bytes, 0, bytes.Length);
+		java.net.URL codeSourceUrl = url;
+		var urlStr = url.toString();
+		if (urlStr.StartsWith("jar:", StringComparison.OrdinalIgnoreCase))
+		{
+			var jarPath = urlStr["jar:".Length..];
+			var bangSlash = jarPath.IndexOf("!/", StringComparison.Ordinal);
+			if (bangSlash >= 0)
+				jarPath = jarPath[..bangSlash];
+			codeSourceUrl = new java.net.URL(jarPath);
+		}
+		java.security.CodeSource codeSource = new(codeSourceUrl, (java.security.cert.Certificate[])null);
+		java.security.ProtectionDomain protectionDomain = new(codeSource, null, this, null);
+
+		MaybeDefinePackage(name);
+        return defineClass(name, bytes, 0, bytes.Length, protectionDomain);
     }
+
+	public override java.net.URL getResource(string name)
+	{
+		if (!name.EndsWith(".class"))
+			return base.getResource(name);
+
+		var klass = name[0..^6].Replace("/", ".");
+
+		foreach (var (assemblyName, prefixes, _) in dllLoaders)
+		{
+			if (!prefixes.Any(x => klass.StartsWith(x)))
+				continue;
+
+            classloader_debug($"[IkvmClassLoader] '{name}' resource loaded from asm {assemblyName}");
+			return new java.net.URL("assembly:", assemblyName, name);
+		}
+
+		return base.getResource(name);
+	}
 
     protected override java.lang.Class loadClass(string name, bool resolve)
     {
@@ -183,6 +265,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 					loadedFrom = $"assembly {assemblyName}";
 					cls = loader.loadClass(name);
 					fastpath = true;
+					break;
                 }
             }
 
@@ -215,7 +298,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
                 resolveClass(cls);
             }
 
-            ClassLoaderLogging.Debug($"[IkvmClassLoader] '{name}' loaded from {loadedFrom}");
+            classloader_debug($"[IkvmClassLoader] '{name}' loaded from {loadedFrom}");
             return cls;
         }
     }

@@ -56,3 +56,7 @@ void mono_threads_request_thread_dump (void);
 EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {
 	mono_threads_request_thread_dump();
 }
+
+void classloader_debug(char* log) {
+	EM_ASM({ console.debug(UTF8ToString($0)); }, log);
+}

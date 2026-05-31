@@ -1,3 +1,5 @@
+import { bypassDebug } from "./dotnet";
+
 const DEFAULT_PRISM_META_BASE_URL = "https://meta.prismlauncher.org/v1/";
 const DEFAULT_MOJANG_VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const DEFAULT_RESOURCE_BASE_URL = "https://resources.download.minecraft.net/";
@@ -9,6 +11,13 @@ const DEFAULT_MAX_CONCURRENT_ASSET_CHECKS = 16;
 const DEFAULT_SHA1_WORKER_COUNT = 4;
 const DEFAULT_MINECRAFT_OS_NAME = "linux";
 
+const VERSION_MANIFEST_FILENAME = "version.json";
+const CLIENT_JAR_FILENAME = "client.jar";
+const CLIENT_MAPPINGS_FILENAME = "client.txt";
+
+const FABRIC_LOADER_PACKAGE = "net.fabricmc.fabric-loader";
+const FABRIC_INTERMEDIARY_PACKAGE = "net.fabricmc.intermediary";
+
 const DEV_PROXY_PREFIX_BY_HOST: Record<string, string> = {
 	"meta.prismlauncher.org": "/proxy/meta",
 	"piston-meta.mojang.com": "/proxy/piston-meta",
@@ -18,6 +27,7 @@ const DEV_PROXY_PREFIX_BY_HOST: Record<string, string> = {
 	"libraries.minecraft.net": "/proxy/libraries",
 	"repo1.maven.org": "/proxy/maven-central",
 	"repo.maven.apache.org": "/proxy/maven-central-alt",
+	"maven.fabricmc.net": "/proxy/maven-fabricmc",
 };
 
 interface PrismVersionList {
@@ -45,6 +55,9 @@ interface MinecraftRule {
 interface PrismMinecraftVersion {
 	id?: string;
 	version?: string;
+	inheritsFrom?: string;
+	mainClass?: string;
+	type?: string;
 	assets?: string;
 	downloads?: {
 		client?: DownloadInfo;
@@ -57,6 +70,13 @@ interface PrismMinecraftVersion {
 	assetIndex?: DownloadInfo & {
 		id?: string;
 	};
+	libraries?: PrismMinecraftLibrary[];
+}
+
+interface PrismFabricManifest {
+	uid?: string;
+	version?: string;
+	mainClass?: string;
 	libraries?: PrismMinecraftLibrary[];
 }
 
@@ -77,6 +97,7 @@ interface MojangVersionManifest {
 
 interface PrismMinecraftLibrary {
 	name?: string;
+	url?: string;
 	downloads?: {
 		artifact?: DownloadInfo;
 	};
@@ -142,6 +163,19 @@ export interface IsMinecraftVersionDownloadedOptions {
 	mojangVersionManifestUrl?: string;
 	minecraftOsName?: string;
 	maxConcurrentAssetChecks?: number;
+}
+
+export interface DownloadFabricMinecraftVersionToOpfsOptions extends DownloadMinecraftVersionToOpfsOptions {
+	loaderVersion?: string;
+	intermediaryVersion?: string;
+	fabricVersionId?: string;
+	skipVanillaIfDownloaded?: boolean;
+}
+
+export interface DownloadFabricMinecraftVersionToOpfsResult extends DownloadMinecraftVersionToOpfsResult {
+	loaderVersion: string;
+	intermediaryVersion: string;
+	inheritsFrom: string;
 }
 
 function ensureTrailingSlash(url: string): string {
@@ -615,7 +649,8 @@ function resolveLibraryUrl(library: PrismMinecraftLibrary, relativePath: string,
 		return artifactUrl;
 	}
 
-	return new URL(relativePath, libraryBaseUrl).toString();
+	const baseUrl = library.url !== undefined ? ensureTrailingSlash(library.url) : libraryBaseUrl;
+	return new URL(relativePath, baseUrl).toString();
 }
 
 function collectLibraryDownloads(
@@ -736,7 +771,8 @@ export async function downloadMinecraftVersionToOpfs(
 	);
 
 	const root = await navigator.storage.getDirectory();
-	const versionJsonPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.json`;
+	const versionDirectory = `${opfsRootDirectory}/versions/${resolvedVersion}`;
+	const versionJsonPath = `${versionDirectory}/${VERSION_MANIFEST_FILENAME}`;
 	await writeFileToOpfs(root, versionJsonPath, versionManifestText);
 
 	const libraries = collectLibraryDownloads(versionManifest.libraries, libraryBaseUrl, minecraftOsName);
@@ -751,7 +787,7 @@ export async function downloadMinecraftVersionToOpfs(
 	});
 
 	const clientJarData = await downloadBinary(clientDownload.url, clientDownload, `client jar '${resolvedVersion}'`);
-	const clientJarPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.jar`;
+	const clientJarPath = `${versionDirectory}/${CLIENT_JAR_FILENAME}`;
 	await writeFileToOpfs(root, clientJarPath, clientJarData);
 
 	const clientMappingsDownload = await resolveMojangClientMappingsDownload(resolvedVersion, mojangVersionManifestUrl);
@@ -762,7 +798,7 @@ export async function downloadMinecraftVersionToOpfs(
 			clientMappingsDownload,
 			`client mappings '${resolvedVersion}'`,
 		);
-		clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
+		clientMappingsPath = `${versionDirectory}/${CLIENT_MAPPINGS_FILENAME}`;
 		await writeFileToOpfs(root, clientMappingsPath, mappingsData);
 	}
 
@@ -823,8 +859,9 @@ export async function isMinecraftVersionDownloaded(
 	);
 
 	const root = await navigator.storage.getDirectory();
-	const versionJsonPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.json`;
-	const clientJarPath = `${opfsRootDirectory}/versions/${resolvedVersion}/${resolvedVersion}.jar`;
+	const versionDirectory = `${opfsRootDirectory}/versions/${resolvedVersion}`;
+	const versionJsonPath = `${versionDirectory}/${VERSION_MANIFEST_FILENAME}`;
+	const clientJarPath = `${versionDirectory}/${CLIENT_JAR_FILENAME}`;
 	const versionJsonExists = await fileExists(root, versionJsonPath);
 	const clientJarExists = await fileExists(root, clientJarPath);
 	if (!versionJsonExists) {
@@ -890,41 +927,41 @@ export async function isMinecraftVersionDownloaded(
 	}
 
 	if (verifyClientMappings) {
+		const mappingsLookupVersion = versionManifest.inheritsFrom ?? resolvedVersion;
 		let clientMappingsDownload: DownloadInfo | null = null;
 		let clientMappingsLookupFailed = false;
 		try {
-			clientMappingsDownload = await resolveMojangClientMappingsDownload(resolvedVersion, mojangVersionManifestUrl);
+			clientMappingsDownload = await resolveMojangClientMappingsDownload(mappingsLookupVersion, mojangVersionManifestUrl);
 		} catch (error) {
 			clientMappingsLookupFailed = true;
 			warnDownloadCheckFailure(
-				`Could not consult Mojang manifest to verify client mappings for '${resolvedVersion}' — skipping mappings check.`,
+				`Could not consult Mojang manifest to verify client mappings for '${mappingsLookupVersion}' — skipping mappings check.`,
 				error,
 			);
 		}
 
+		const clientMappingsPath = `${versionDirectory}/${CLIENT_MAPPINGS_FILENAME}`;
 		if (clientMappingsDownload !== null) {
-			const clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
 			try {
 				if (verifyHashes) {
 					const mappingsData = await readFileArrayBuffer(root, clientMappingsPath);
 					await assertIntegrity(
 						mappingsData,
 						{ sha1: clientMappingsDownload.sha1, size: clientMappingsDownload.size },
-						`client mappings '${resolvedVersion}'`,
+						`client mappings '${mappingsLookupVersion}'`,
 					);
 				} else if (!(await fileExists(root, clientMappingsPath))) {
 					warnDownloadCheckFailure(`Missing client mappings at '${clientMappingsPath}'.`);
 					return false;
 				}
 			} catch (error) {
-				warnDownloadCheckFailure(`Client mappings check failed for '${resolvedVersion}'.`, error);
+				warnDownloadCheckFailure(`Client mappings check failed for '${mappingsLookupVersion}'.`, error);
 				return false;
 			}
 		} else if (!clientMappingsLookupFailed) {
-			const clientMappingsPath = `${opfsRootDirectory}/versions/${resolvedVersion}/client.txt`;
 			if (await fileExists(root, clientMappingsPath)) {
 				warnDownloadCheckFailure(
-					`Stale client.txt at '${clientMappingsPath}': Mojang manifest does not declare client mappings for '${resolvedVersion}'.`,
+					`Stale ${CLIENT_MAPPINGS_FILENAME} at '${clientMappingsPath}': Mojang manifest does not declare client mappings for '${mappingsLookupVersion}'.`,
 				);
 			}
 		}
@@ -981,7 +1018,7 @@ export async function isMinecraftVersionDownloaded(
 
 		const hashPrefix = assetObject.hash.slice(0, 2);
 		const objectPath = `${opfsRootDirectory}/assets/objects/${hashPrefix}/${assetObject.hash}`;
-		console.debug("[verify] path", objectPath);
+		bypassDebug("[verify] path", objectPath);
 		try {
 			if (verifyHashes) {
 				const objectData = await readFileArrayBuffer(root, objectPath);
@@ -1004,4 +1041,169 @@ export async function isMinecraftVersionDownloaded(
 	}
 
 	return true;
+}
+
+async function copyFileInOpfs(
+	root: FileSystemDirectoryHandle,
+	sourcePath: string,
+	destinationPath: string,
+): Promise<void> {
+	const sourceData = await readFileArrayBuffer(root, sourcePath);
+	await writeFileToOpfs(root, destinationPath, sourceData);
+}
+
+async function fetchPrismPackageManifest<T>(
+	prismMetaBaseUrl: string,
+	packageId: string,
+	version: string,
+): Promise<T> {
+	const url = new URL(
+		`${encodeURIComponent(packageId)}/${encodeURIComponent(version)}.json`,
+		prismMetaBaseUrl,
+	).toString();
+	return await fetchJson<T>(url);
+}
+
+async function resolveLatestPrismPackageVersion(prismMetaBaseUrl: string, packageId: string): Promise<string> {
+	const indexUrl = new URL(`${encodeURIComponent(packageId)}/index.json`, prismMetaBaseUrl).toString();
+	const index = await fetchJson<PrismVersionList>(indexUrl);
+	const entry = index.versions[0];
+	if (entry === undefined || entry.version === undefined) {
+		throw new Error(`Prism meta package '${packageId}' has no versions.`);
+	}
+	return entry.version;
+}
+
+export async function downloadFabricMinecraftVersionToOpfs(
+	mcVersion: string,
+	options: DownloadFabricMinecraftVersionToOpfsOptions = {},
+): Promise<DownloadFabricMinecraftVersionToOpfsResult> {
+	const prismMetaBaseUrl = ensureTrailingSlash(options.prismMetaBaseUrl ?? DEFAULT_PRISM_META_BASE_URL);
+	const libraryBaseUrl = ensureTrailingSlash(options.libraryBaseUrl ?? DEFAULT_LIBRARY_BASE_URL);
+	const opfsRootDirectory = ensureSafePathSegment(
+		options.opfsRootDirectory ?? DEFAULT_OPFS_ROOT_DIRECTORY,
+		"OPFS root directory",
+	);
+	const minecraftOsName = normalizeMinecraftOsName(options.minecraftOsName);
+	const maxConcurrentLibraryDownloads = ensurePositiveInteger(
+		options.maxConcurrentLibraryDownloads ?? DEFAULT_MAX_CONCURRENT_LIBRARY_DOWNLOADS,
+		DEFAULT_MAX_CONCURRENT_LIBRARY_DOWNLOADS,
+	);
+	const requestedMcVersion = ensureSafePathSegment(mcVersion, "minecraft version");
+	const skipVanillaIfDownloaded = options.skipVanillaIfDownloaded ?? true;
+
+	const shouldDownloadVanilla = !skipVanillaIfDownloaded
+		|| !(await isMinecraftVersionDownloaded(requestedMcVersion, {
+			opfsRootDirectory: options.opfsRootDirectory,
+			minecraftOsName: options.minecraftOsName,
+			mojangVersionManifestUrl: options.mojangVersionManifestUrl,
+			verifyAssetObjects: false,
+			verifyHashes: false,
+			verifyClientMappings: false,
+		}));
+	const vanillaResult = shouldDownloadVanilla
+		? await downloadMinecraftVersionToOpfs(requestedMcVersion, options)
+		: null;
+
+	const root = await navigator.storage.getDirectory();
+	const vanillaVersionDirectory = `${opfsRootDirectory}/versions/${requestedMcVersion}`;
+	const vanillaVersionJsonPath = `${vanillaVersionDirectory}/${VERSION_MANIFEST_FILENAME}`;
+	const vanillaClientJarPath = `${vanillaVersionDirectory}/${CLIENT_JAR_FILENAME}`;
+	const vanillaClientMappingsPath = `${vanillaVersionDirectory}/${CLIENT_MAPPINGS_FILENAME}`;
+
+	const vanillaManifestText = await readFileText(root, vanillaVersionJsonPath);
+	const vanillaManifest = JSON.parse(vanillaManifestText) as PrismMinecraftVersion;
+
+	const loaderVersion = ensureSafePathSegment(
+		options.loaderVersion ?? await resolveLatestPrismPackageVersion(prismMetaBaseUrl, FABRIC_LOADER_PACKAGE),
+		"fabric loader version",
+	);
+	const intermediaryVersion = ensureSafePathSegment(
+		options.intermediaryVersion ?? requestedMcVersion,
+		"fabric intermediary version",
+	);
+
+	const [loaderManifest, intermediaryManifest] = await Promise.all([
+		fetchPrismPackageManifest<PrismFabricManifest>(prismMetaBaseUrl, FABRIC_LOADER_PACKAGE, loaderVersion),
+		fetchPrismPackageManifest<PrismFabricManifest>(prismMetaBaseUrl, FABRIC_INTERMEDIARY_PACKAGE, intermediaryVersion),
+	]);
+
+	if (loaderManifest.mainClass === undefined || loaderManifest.mainClass.trim().length === 0) {
+		throw new Error(`Fabric loader '${loaderVersion}' manifest is missing 'mainClass'.`);
+	}
+
+	const fabricLibraryEntries: PrismMinecraftLibrary[] = [
+		...(intermediaryManifest.libraries ?? []),
+		...(loaderManifest.libraries ?? []),
+	];
+	const fabricLibraries = collectLibraryDownloads(fabricLibraryEntries, libraryBaseUrl, minecraftOsName);
+	await runConcurrently(fabricLibraries, maxConcurrentLibraryDownloads, async (library) => {
+		const libraryData = await downloadBinary(
+			library.url,
+			{ sha1: library.sha1, size: library.size },
+			`fabric library '${library.name}'`,
+		);
+		const libraryPath = `${opfsRootDirectory}/libraries/${library.relativePath}`;
+		await writeFileToOpfs(root, libraryPath, libraryData);
+	});
+
+	const fabricVersionId = ensureSafePathSegment(
+		options.fabricVersionId ?? `${requestedMcVersion}-fabric-${loaderVersion}`,
+		"fabric version id",
+	);
+	const fabricVersionDirectory = `${opfsRootDirectory}/versions/${fabricVersionId}`;
+	const fabricVersionJsonPath = `${fabricVersionDirectory}/${VERSION_MANIFEST_FILENAME}`;
+	const fabricClientJarPath = `${fabricVersionDirectory}/${CLIENT_JAR_FILENAME}`;
+
+	const mergedLibraries: PrismMinecraftLibrary[] = [
+		...(vanillaManifest.libraries ?? []),
+		...fabricLibraryEntries,
+	];
+	const mergedManifest: PrismMinecraftVersion = {
+		...vanillaManifest,
+		id: fabricVersionId,
+		version: fabricVersionId,
+		inheritsFrom: requestedMcVersion,
+		mainClass: loaderManifest.mainClass,
+		type: vanillaManifest.type ?? "release",
+		libraries: mergedLibraries,
+	};
+	const mergedManifestText = JSON.stringify(mergedManifest, null, 2);
+	await writeFileToOpfs(root, fabricVersionJsonPath, mergedManifestText);
+
+	await copyFileInOpfs(root, vanillaClientJarPath, fabricClientJarPath);
+
+	let fabricClientMappingsPath: string | null = null;
+	if (await fileExists(root, vanillaClientMappingsPath)) {
+		fabricClientMappingsPath = `${fabricVersionDirectory}/${CLIENT_MAPPINGS_FILENAME}`;
+		await copyFileInOpfs(root, vanillaClientMappingsPath, fabricClientMappingsPath);
+	}
+
+	const assetIndexId = ensureSafePathSegment(
+		vanillaManifest.assetIndex?.id ?? vanillaManifest.assets ?? requestedMcVersion,
+		"asset index id",
+	);
+	const assetIndexPath = `${opfsRootDirectory}/assets/indexes/${assetIndexId}.json`;
+	const assetIndexText = await readFileText(root, assetIndexPath);
+	const parsedAssetIndex = JSON.parse(assetIndexText) as AssetIndex;
+	const assetObjects = collectAssetObjects(parsedAssetIndex);
+
+	const totalLibraryCount = (vanillaResult?.libraryCount ?? collectLibraryDownloads(vanillaManifest.libraries, libraryBaseUrl, minecraftOsName).length)
+		+ fabricLibraries.length;
+
+	return {
+		version: fabricVersionId,
+		inheritsFrom: requestedMcVersion,
+		loaderVersion,
+		intermediaryVersion,
+		versionJsonPath: fabricVersionJsonPath,
+		clientJarPath: fabricClientJarPath,
+		clientMappingsPath: fabricClientMappingsPath,
+		libraryCount: totalLibraryCount,
+		librariesDirectoryPath: `${opfsRootDirectory}/libraries`,
+		assetIndexId,
+		assetIndexPath,
+		assetObjectCount: assetObjects.length,
+		assetObjectsDirectoryPath: `${opfsRootDirectory}/assets/objects`,
+	};
 }
