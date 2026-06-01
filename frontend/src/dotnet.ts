@@ -1,36 +1,36 @@
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
 
-// Chrome auto-suspends silent AudioContexts on hidden tabs and never resumes
-// on its own; SDL3's emscripten audio backend creates the context but doesn't
-// wire visibility handlers, so silence after refocus is on us. Wrap the
-// constructor before the wasm boots so we catch every context SDL3 creates,
-// then resume on visibility / focus / first user gesture after refocus.
-(() => {
-	const tracked = new Set<AudioContext>();
-	const wrap = (Ctor: typeof AudioContext) =>
-		new Proxy(Ctor, {
-			construct(target, args) {
-				const ctx = Reflect.construct(target, args) as AudioContext;
-				tracked.add(ctx);
-				return ctx;
-			},
-		});
-	if (typeof AudioContext !== "undefined") (window as any).AudioContext = wrap(AudioContext);
-	if (typeof (window as any).webkitAudioContext !== "undefined")
-		(window as any).webkitAudioContext = wrap((window as any).webkitAudioContext);
-
-	const resumeAll = () => {
-		for (const ctx of tracked) {
-			if (ctx.state === "suspended") ctx.resume().catch(() => {});
-		}
-	};
-	document.addEventListener("visibilitychange", () => {
-		if (document.visibilityState === "visible") resumeAll();
-	});
-	window.addEventListener("focus", resumeAll);
-	window.addEventListener("pointerdown", resumeAll);
-	window.addEventListener("keydown", resumeAll);
-})();
+/**
+ * Prompts the user to pick a file and uploads it to OPFS at the given path.
+ * Supports nested paths (e.g. "folder/subfolder/file.txt").
+ *
+ * @param filePath - The destination path within OPFS (e.g. "uploads/photo.png")
+ * @returns The FileSystemFileHandle of the written file
+ */
+async function upload(filePath: string): Promise<FileSystemFileHandle> {
+  // Prompt the user to pick a file
+  const [pickedHandle] = await (window as any).showOpenFilePicker();
+  const file = await pickedHandle.getFile();
+ 
+  // Navigate / create directories for any nested path segments
+  const segments = filePath.split("/").filter(Boolean);
+  const fileName = segments.pop();
+  if (!fileName) throw new Error("filePath must include a file name");
+ 
+  let dir: FileSystemDirectoryHandle = await navigator.storage.getDirectory();
+  for (const segment of segments) {
+    dir = await dir.getDirectoryHandle(segment, { create: true });
+  }
+ 
+  // Create (or replace) the file at the destination
+  const destHandle = await dir.getFileHandle(fileName, { create: true });
+  const writable = await destHandle.createWritable();
+  await writable.write(file);
+  await writable.close();
+ 
+  return destHandle;
+}
+(globalThis as any).upload = upload;
 
 const wasm: ModuleAPI = await eval(`import("/_framework/dotnet.js")`);
 const dotnet = wasm.dotnet;

@@ -5,5 +5,6 @@
 
 ![image](assets/preview.png)
 ![image](assets/preview2.png)
+![image](assets/preview3.png)
 
 python3 gen-static-libs.py /ikvm/bin/libiava.so:out/native/libiava.a /ikvm/bin/libzip.so:out/native/libzip.a /ikvm/bin/libnio.so:out/native/libnio.a /ikvm/bin/libnet.so:out/native/libnet.a /ikvm/bin/libmanagement.so:out/native/libmanagement.a /ikvm/bin/libjpeg.so:out/native/libjpeg.a /ikvm/bin/libmlib_image.so:out/native/libmlib_image.a /ikvm/bin/liblcms.so:out/native/liblcms.a /ikvm/bin/libawt.so:out/native/libawt.a /ikvm/bin/libfontmanager.so:out/native/libfontmanager.a /tmp/lwjgl/liblwjgl.so:../native-deps/out/mt/liblwjgl3.a /tmp/lwjgl/libglfw.so:../native-deps/out/mt/libglfw3.a /tmp/lwjgl/liblwjgl_stb.so:../native-deps/out/mt/liblwjgl_stb.a /tmp/lwjgl/libopenal.so:../native-deps/out/mt/liblwjgl_openal.a --rename-symbol /tmp/lwjgl/libglfw.so:emscripten_glfw3_get_proc_address:glfwGetProcAddress --add-alias /tmp/lwjgl/libglfw.so:glfw3 --add-alias /tmp/lwjgl/libglfw.so:/tmp/lwjgl/liblwjgl_opengl.so --add-alias /tmp/lwjgl/libglfw.so:/tmp/lwjgl/libGL.so.1 --add-alias /tmp/lwjgl/liblwjgl.so:/tmp/lwjgl/liblwjgl_tinyfd.so > ../../../ikvmcraft/loader/statics.c

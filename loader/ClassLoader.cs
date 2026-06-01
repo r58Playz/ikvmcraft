@@ -1,5 +1,5 @@
 global using IkvmClassLoaderDll = (string[] Prefixes, string Name);
-global using IkvmClassLoaderTransformer = System.Func<(string[] Prefixes, System.Type Visitor)>;
+global using IkvmClassLoaderTransformer = System.Func<(string[] Classes, System.Type Visitor)>;
 
 using System;
 using System.Collections.Generic;
@@ -54,21 +54,23 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 
 	[DllImport("Emscripten")]
 	private static extern void classloader_debug([MarshalAs(UnmanagedType.LPUTF8Str)] string log);
+	[DllImport("Emscripten")]
+	private static extern void classloader_set_mono_assembly_filename(IntPtr assembly, [MarshalAs(UnmanagedType.LPUTF8Str)] string filename);
 
     private readonly java.lang.ClassLoader systemLoader;
     private readonly List<(string Name, string[] Prefixes, java.lang.ClassLoader Loader)> dllLoaders;
-	private readonly List<(string[] Prefixes, System.Type Visitor)> classTransformers; 
+	private readonly List<(string[] Classes, System.Type Visitor)> classTransformers; 
+
+	public static IkvmClassLoader LatestInstance;
 
     public IkvmClassLoader(string[] jars, IkvmClassLoaderDll[] dlls, IkvmClassLoaderTransformer[] transformers)
         : base((from jar in jars select new java.net.URL("file", "", jar)).ToArray(), null)
     {
-        var selfLoader = CreateAssemblyClassLoader(typeof(IkvmClassLoader).Assembly);
-
         dllLoaders =
         [
-            ("IkvmWasm.self", new[] { "cli.Ikvm" }, selfLoader),
+            ("IkvmWasm", new[] { "cli.Ikvm" }, CreateAssemblyClassLoader("IkvmWasm", typeof(IkvmClassLoader).Assembly)),
             .. from dll in dlls
-               select (dll.Name, dll.Prefixes, CreateAssemblyClassLoader(Assembly.Load(dll.Name))),
+               select (dll.Name, dll.Prefixes, CreateAssemblyClassLoader(dll.Name, Assembly.Load(dll.Name))),
         ];
         systemLoader = java.lang.ClassLoader.getSystemClassLoader();
 
@@ -87,10 +89,15 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 		End:
 			classTransformers.Add(transformer);
 		}
+
+		LatestInstance = this;
     }
 
-    private static java.lang.ClassLoader CreateAssemblyClassLoader(Assembly assembly)
+    private static java.lang.ClassLoader CreateAssemblyClassLoader(string name, Assembly assembly)
     {
+		var ptr = (IntPtr)assembly.GetType().GetMethod("GetUnderlyingNativeHandle", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(assembly, []);
+		classloader_set_mono_assembly_filename(ptr, $"/dlls/{name}.dll");
+
         var context = typeof(JVM).GetProperty("Context", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null);
         if (context is null)
         {
@@ -141,6 +148,34 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 		}
 	}
 
+	public byte[] TransformClassBytecode(string name, byte[] bytes)
+	{
+		foreach (var transformer in classTransformers)
+		{
+			if (!transformer.Classes.Any(x => name == x))
+				continue;
+
+			classloader_debug($"[IkvmClassLoader] applying transformer {transformer.Visitor} to '{name}'");
+
+			try
+			{
+				org.objectweb.asm.ClassReader reader = new(bytes);
+				org.objectweb.asm.ClassWriter writer = new(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES | org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
+				var visitor = (org.objectweb.asm.ClassVisitor)Activator.CreateInstance(transformer.Visitor, [name, writer]);
+				reader.accept(visitor, 0);
+
+				bytes = writer.toByteArray();
+			}
+			catch (Exception)
+			{
+				Console.Error.WriteLine($"[IkvmClassLoader] transformer {transformer.Visitor} failed on '{name}'");
+				throw;
+			}
+		}
+
+		return bytes;
+	}
+
     protected override java.lang.Class findClass(string name)
     {
         if (classTransformers.Count == 0)
@@ -173,28 +208,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
             stream.close();
         }
 
-		foreach (var transformer in classTransformers)
-		{
-			if (!transformer.Prefixes.Any(x => name.StartsWith(x)))
-				continue;
-
-			classloader_debug($"[IkvmClassLoader] applying transformer {transformer.Visitor} to '{name}'");
-
-			try
-			{
-				org.objectweb.asm.ClassReader reader = new(bytes);
-				org.objectweb.asm.ClassWriter writer = new(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES | org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
-				var visitor = (org.objectweb.asm.ClassVisitor)Activator.CreateInstance(transformer.Visitor, [name, writer]);
-				reader.accept(visitor, 0);
-
-				bytes = writer.toByteArray();
-			}
-			catch (Exception e)
-			{
-				Console.Error.WriteLine($"[IkvmClassLoader] transformer {transformer.Visitor} failed on '{name}'");
-				throw;
-			}
-		}
+		bytes = TransformClassBytecode(name, bytes);
 
 		java.net.URL codeSourceUrl = url;
 		var urlStr = url.toString();
@@ -230,6 +244,27 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 		}
 
 		return base.getResource(name);
+	}
+
+	public override java.util.Enumeration getResources(string name)
+	{
+		if (name.EndsWith(".class"))
+		{
+			var klass = name[0..^6].Replace("/", ".");
+
+			foreach (var (assemblyName, prefixes, _) in dllLoaders)
+			{
+				if (!prefixes.Any(x => klass.StartsWith(x)))
+					continue;
+
+				classloader_debug($"[IkvmClassLoader] '{name}' resources resolved from asm {assemblyName}");
+				var urls = new java.util.Vector();
+				urls.add(new java.net.URL("assembly:", assemblyName, name));
+				return urls.elements();
+			}
+		}
+
+		return base.getResources(name);
 	}
 
     protected override java.lang.Class loadClass(string name, bool resolve)

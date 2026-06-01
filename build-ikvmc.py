@@ -39,14 +39,15 @@ BUNDLES: list[Bundle] = [
     Bundle(
         name="asm",
         output_dir="jars",
-        output_dll="ikvmc_asm-9.7.1.dll",
+        output_dll="ikvmc_asm-9.9.dll",
         jars=[
-            "org.ow2.asm:asm:9.7.1",
-            "org.ow2.asm:asm-tree:9.7.1",
-            "org.ow2.asm:asm-analysis:9.7.1",
-            "org.ow2.asm:asm-commons:9.7.1",
+            "org.ow2.asm:asm:9.9",
+            "org.ow2.asm:asm-commons:9.9",
+            "org.ow2.asm:asm-analysis:9.9",
+            "org.ow2.asm:asm-tree:9.9",
+            "org.ow2.asm:asm-util:9.9",
         ],
-        prefixes=["org.objectweb.asm"],
+        prefixes=["org.objectweb.asm."],
         aot=True,
     ),
 

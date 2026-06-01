@@ -10,6 +10,17 @@ if [ -f "$OUT" ]; then
 	exit
 fi
 
+# Resolve "@<path>" filter args to absolute paths while still in the repo root,
+# since the program runs from aotprofile/ where the relative path would break.
+ARGS=()
+for arg in "$@"; do
+	if [[ "$arg" == @* ]]; then
+		ARGS+=("@$(realpath "${arg:1}")")
+	else
+		ARGS+=("$arg")
+	fi
+done
+
 cd aotprofile || exit 1
 
-dotnet run -- "$OUT" "$IN" "$@" >/dev/null
+dotnet run -- "$OUT" "$IN" "${ARGS[@]}" >/dev/null

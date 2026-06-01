@@ -1,5 +1,5 @@
-STATICS_RELEASE=d1e58815-9732-47a1-8078-ab0c58712ec0
-IKVM_RELEASE=e96e0434-0f4f-4623-8c89-e2634a67e9e6
+STATICS_RELEASE=64a28d8c-a148-440b-a848-3246372c5c42
+IKVM_RELEASE=f54599ce-05cb-4703-b84b-b4ba0f593b77
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
@@ -34,14 +34,8 @@ build: ikvmc-bundles
 		java.lang. java.util. java.nio. java.net. java.security. java.time. \
 		sun.nio.fs. sun.nio.cs. com.sun.nio.zipfs. \
 		sun.reflect. sun.misc.
-	# probably need to tighten fastutil more
 	./aotprofile.sh jars/ikvmc_fastutil-8.2.1.aotprofile jars/ikvmc_fastutil-8.2.1.dll \
-		it.unimi.dsi.fastutil.objects. \
-		it.unimi.dsi.fastutil.ints. \
-		it.unimi.dsi.fastutil.longs. \
-		it.unimi.dsi.fastutil.doubles. \
-		it.unimi.dsi.fastutil.shorts. \
-		it.unimi.dsi.fastutil.booleans.
+		@fastutil-aot-classes.txt
 #
 	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/

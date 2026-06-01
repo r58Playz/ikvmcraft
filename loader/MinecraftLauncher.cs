@@ -174,6 +174,20 @@ internal static class MinecraftLauncher
 
 		Mappings.SetMappings(new MojmapMappings(File.ReadAllText(options.ClientMappingsPath)));
 
+		try {
+			java.net.URLClassLoader cl = new((from jar in plan.ClassPathJars select new java.net.URL("file", "", jar)).ToArray());
+			var fabricMappings = cl.getResourceAsStream("mappings/mappings.tiny");
+			if (fabricMappings != null)
+			{
+				Mappings.SetIntermediaryMappings(TinyV1Mappings.FromResource(fabricMappings)); 
+				Console.WriteLine("[MinecraftLauncher] detected fabric intermediary mappings");
+			}
+			cl.close();
+		} catch (Exception e) {
+			Console.WriteLine("[MinecraftLauncher] Failed to load fabric intermediary mappings (they might not exist)");
+			Console.WriteLine(e);
+		}
+
 		var loader = new IkvmClassLoader(plan.ClassPathJars, bundleMatch.ActiveDlls, transformers);
 
 		java.lang.Thread.currentThread().setContextClassLoader(loader);
@@ -191,7 +205,6 @@ internal static class MinecraftLauncher
 				SetSystemProperty(pair.Key, pair.Value);
 			}
 		}
-
 
 		return plan;
 	}

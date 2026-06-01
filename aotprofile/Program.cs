@@ -8,12 +8,44 @@ using Mono.Cecil;
 
 string profileOut = args[0];
 string profileAsm = args[1];
-List<string> filters = args.Skip(2).ToList();
+
+// Filters come in two flavors:
+//   "<prefix>"  -> StartsWith match. Legacy behavior: matches the type plus any
+//                  sibling/nested type sharing the prefix (e.g. "...Int2ObjectMap"
+//                  also catches "...Int2ObjectMaps").
+//   "@<path>"   -> read the file; each non-empty, non-'#' line is an EXACT type
+//                  name. Matches that type and its nested types ("<name>/..."),
+//                  but NOT sibling classes. Use for a precise, hand-curated list.
+List<string> prefixFilters = new();
+HashSet<string> exactFilters = new();
+foreach (var arg in args.Skip(2)) {
+	if (arg.StartsWith("@")) {
+		var path = arg.Substring(1);
+		foreach (var raw in File.ReadAllLines(path)) {
+			var line = raw.Trim();
+			if (line.Length == 0 || line.StartsWith("#"))
+				continue;
+			exactFilters.Add(line);
+		}
+	} else {
+		prefixFilters.Add(arg);
+	}
+}
 
 bool CheckFilters(string name)
 {
-	foreach (var filter in filters) {
+	foreach (var filter in prefixFilters) {
 		if (name.StartsWith(filter))
+			return true;
+	}
+
+	if (exactFilters.Count > 0) {
+		// Exact match against the listed type itself...
+		if (exactFilters.Contains(name))
+			return true;
+		// ...and against nested types, whose Cecil FullName is "<declaring>/<nested>".
+		int slash = name.IndexOf('/');
+		if (slash >= 0 && exactFilters.Contains(name.Substring(0, slash)))
 			return true;
 	}
 
@@ -100,8 +132,6 @@ string MonoSignature(MethodDefinition m)
 	return sb.ToString();
 }
 
-// The aot-compiler reader splits the type name on the LAST '.', so it must
-// always contain one — even when the namespace is empty.
 string MonoTypeFullName(TypeDefinition td)
 {
 	if (td.IsNested)
@@ -117,7 +147,7 @@ IEnumerable<TypeDefinition> WalkTypes(TypeDefinition td)
 			yield return x;
 }
 
-Console.Error.WriteLine($"Writing aot profile '{profileOut}' for asm '{profileAsm}' with filters: '{string.Join("', '", filters)}'");
+Console.Error.WriteLine($"Writing aot profile '{profileOut}' for asm '{profileAsm}' with {prefixFilters.Count} prefix filter(s) and {exactFilters.Count} exact filter(s)");
 
 var asm = AssemblyDefinition.ReadAssembly(profileAsm);
 var mod = asm.MainModule;

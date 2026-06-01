@@ -60,3 +60,30 @@ EMSCRIPTEN_KEEPALIVE void perform_thread_dump() {
 void classloader_debug(char* log) {
 	EM_ASM({ console.debug(UTF8ToString($0)); }, log);
 }
+
+struct _MonoImage {
+	int   ref_count;
+	void *storage;
+	char *raw_data;
+	uint32_t raw_data_len;
+	uint8_t dynamic : 1;
+	uint8_t not_executable : 1;
+	uint8_t uncompressed_metadata : 1;
+	uint8_t metadata_only : 1;
+	uint8_t checked_module_cctor : 1;
+	uint8_t has_module_cctor : 1;
+	uint8_t idx_string_wide : 1;
+	uint8_t idx_guid_wide : 1;
+	uint8_t idx_blob_wide : 1;
+	uint8_t core_clr_platform_code : 1;
+	uint8_t minimal_delta : 1;
+	char *name;
+	char *filename;
+};
+typedef struct _MonoImage MonoImage;
+MonoImage* mono_assembly_get_image (void *assembly);
+
+void classloader_set_mono_assembly_filename(void *assembly, char *name) {
+	MonoImage *image = mono_assembly_get_image(assembly);
+	image->filename = strdup(name);
+}
