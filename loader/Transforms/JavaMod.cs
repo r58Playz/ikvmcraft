@@ -9,17 +9,38 @@ internal enum JavaMoveType
 	After,
 }
 
+// Captures are embedded in the match closures and reused across every start
+// index a single GotoNext scan tries. Without a per-attempt reset, a value
+// captured during a failed partial match would poison all later attempts (e.g.
+// the first ALoad capture locking onto the method's leading aload_0). Each
+// attempt bumps the generation; a capture set in an older generation is treated
+// as unset, so same-value constraints only bind within one attempt.
+internal static class JavaMatchScope
+{
+	[System.ThreadStatic]
+	private static int generation;
+
+	public static int Generation => generation;
+
+	public static void NextAttempt()
+	{
+		generation++;
+	}
+}
+
 internal sealed class JavaCapture<T>
 {
 	public bool HasValue { get; private set; }
 	public T Value { get; private set; }
+	private int generation = -1;
 
 	public bool Match(T value)
 	{
-		if (!HasValue)
+		if (!HasValue || generation != JavaMatchScope.Generation)
 		{
 			Value = value;
 			HasValue = true;
+			generation = JavaMatchScope.Generation;
 			return true;
 		}
 
@@ -30,6 +51,7 @@ internal sealed class JavaCapture<T>
 	{
 		HasValue = false;
 		Value = default;
+		generation = -1;
 	}
 
 	public static implicit operator T(JavaCapture<T> capture)
@@ -329,6 +351,7 @@ internal sealed class JavaCursor
 
 		for (var i = Index; i < instructions.size(); i++)
 		{
+			JavaMatchScope.NextAttempt();
 			if (!TryMatchForward(i, pattern, out var firstMatch, out var lastMatch))
 				continue;
 

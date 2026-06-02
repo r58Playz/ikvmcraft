@@ -1,5 +1,26 @@
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
 
+function crashMinecraftF3C(holdMs = 10500) {
+	const send = (type: string, code: string, key: string, repeat: boolean) =>
+		document.dispatchEvent(new KeyboardEvent(type, {
+			code, key, repeat, bubbles: true, cancelable: true,
+		}));
+	send('keydown', 'F3',   'F3', false);
+	send('keydown', 'KeyC', 'c',  false);
+	const tick = setInterval(() => {
+		send('keydown', 'F3',   'F3', true);
+		send('keydown', 'KeyC', 'c',  true);
+	}, 200);
+	setTimeout(() => {
+		clearInterval(tick);
+		send('keyup', 'KeyC', 'c',  false);
+		send('keyup', 'F3',   'F3', false);
+	}, holdMs);
+
+	console.log(`[f3c] holding F3+C for ${holdMs}ms`);
+}
+(globalThis as any).crashMinecraftF3C = crashMinecraftF3C;
+
 /**
  * Prompts the user to pick a file and uploads it to OPFS at the given path.
  * Supports nested paths (e.g. "folder/subfolder/file.txt").

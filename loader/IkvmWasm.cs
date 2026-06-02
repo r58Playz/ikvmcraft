@@ -145,6 +145,8 @@ static partial class IkvmWasm
 					RemoveDfuPreloadTransform.Transformer,
 					SwapNettyBackendTransform.Transformer,
 					InjectIkvmIntoKnotTransform.Transformer,
+					ThereAreNoBareClientsTransform.Transformer,
+					FixCrashReportTransform.Transformer,
 				],
             });
 

@@ -78,7 +78,7 @@ class MojmapClassMapping : IClassMapping
 				var unmapped_f = MojmapToTiny(g["Unmapped"].Value);
 				var mapped_f = g["Mapped"].Value;
 				Methods[unmapped_f] = mapped_f;
-				//Console.WriteLine($"[Mojmap]\tmethod {unmapped_f.Item1} {unmapped_f.Item2} -> {mapped_f}");
+				//Console.WriteLine($"[Mojmap]\tmethod '{unmapped_f.Item1}' '{unmapped_f.Item2}' -> '{mapped_f}'");
 			}
 			else
 			{
@@ -213,6 +213,7 @@ internal class TinyV1Mappings : IMappings
 
 				case "METHOD":
 					methods[(parts[3], parts[2])] = parts[4];
+					//Console.WriteLine($"[Tiny] method {parts[3]} {parts[2]} {parts[4]}");
 					break;
 			};
 		}
@@ -257,9 +258,12 @@ internal struct IntermediaryClassMappings : IClassMapping
 	public string GetMethod(string method, string signature)
 	{
 		var one = One.GetMethod(method, signature);
+		//Console.WriteLine($"[Intermediary] GetMethod One {method} {signature} {one}"); 
 		if (one == null)
 			return null;
-		return Two.GetMethod(one, Mappings.RemapClassSignature(OneMappings, signature));
+		var two = Two.GetMethod(one, Mappings.RemapClassSignature(OneMappings, signature));
+		//Console.WriteLine($"[Intermediary] GetMethod Two {one} {Mappings.RemapClassSignature(OneMappings, signature)} {two}"); 
+		return two;
 	}
 }
 
@@ -277,13 +281,16 @@ internal struct IntermediaryMappings : IMappings
 	public IClassMapping GetClass(string klass)
 	{
 		var official = One.GetClass(klass);
+		//Console.WriteLine($"[Intermediary] GetClass One {klass}"); 
 		if (official == null)
 			return null;
 
 		var intermediary = Two.GetClass(official.Name);
+		//Console.WriteLine($"[Intermediary] GetClass Two {klass} {official.Name}"); 
 		if (intermediary == null)
 			return null;
 
+		//Console.WriteLine($"[Intermediary] GetClass End {klass} {official.Name} {intermediary.Name}"); 
 		return new IntermediaryClassMappings(One, official, intermediary);
 	}
 }
