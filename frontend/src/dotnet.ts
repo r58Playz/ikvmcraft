@@ -1,4 +1,5 @@
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
+import { EpxTcpWs } from "./net";
 
 function crashMinecraftF3C(holdMs = 10500) {
 	const send = (type: string, code: string, key: string, repeat: boolean) =>
@@ -103,6 +104,17 @@ export function getDlls(): (readonly [string, string])[] {
 export async function initDotnet(canvas: HTMLCanvasElement) {
 	// emscripten proxy hackfix number 39847232303
 	(globalThis as any).Atomics.waitAsync = undefined;
+
+	(globalThis as any).WebSocket = new Proxy(WebSocket, {
+		construct(t, a, n) {
+			const url = new URL(a[0]);
+			if (url.hostname.startsWith("wisp-"))
+				return new EpxTcpWs(url);
+
+			return Reflect.construct(t, a, n);
+		},
+	});
+
 	console.time("dotnet ");
 	//(globalThis as any).GLFW3_DEBUG = true;
 	runtime = await dotnet

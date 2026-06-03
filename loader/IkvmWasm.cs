@@ -115,6 +115,8 @@ static partial class IkvmWasm
                 java.lang.System.setProperty(prop[0], prop[1]);
             }
 
+			IkvmNameService.Install();
+
             return Task.CompletedTask;
         }
         catch (Exception e)
@@ -140,6 +142,7 @@ static partial class IkvmWasm
                 AssetsRootPath = "/libsdl/ikvmcraft/assets/",
                 GameDirectoryPath = "/libsdl/minecraft/",
                 MinecraftOsName = "Emscripten",
+				PlayerName = "ikvmcraft",
                 AsmTransformers =
                 [
 					RemoveDfuPreloadTransform.Transformer,

@@ -9,10 +9,9 @@ internal class SwapNettyBackendTransform : ClassRemapper
 	private const string McServerConnectionListener = "net.minecraft.server.network.ServerConnectionListener";
 
     private const string NioEventLoopGroup = "io/netty/channel/nio/NioEventLoopGroup";
-    private const string OioEventLoopGroup = "io/netty/channel/oio/OioEventLoopGroup";
     private const string DefaultEventLoopGroup = "io/netty/channel/DefaultEventLoopGroup";
     private const string NioSocketChannel = "io/netty/channel/socket/nio/NioSocketChannel";
-    private const string OioSocketChannel = "io/netty/channel/socket/oio/OioSocketChannel";
+    private const string IkvmWebSocketChannel = "cli/IkvmWebSocketChannel";
 
 	public static IkvmClassLoaderTransformer Transformer = () => {
 		string[] classes = [McConnection, McServerStatusPinger, McServerConnectionListener];
@@ -30,8 +29,8 @@ internal class SwapNettyBackendTransform : ClassRemapper
 		else
 		{
 			if (name == Mappings.CurrentMappings.GetClass(McConnection).Name)
-				map.put(NioEventLoopGroup, OioEventLoopGroup);
-			map.put(NioSocketChannel, OioSocketChannel);
+				map.put(NioEventLoopGroup, DefaultEventLoopGroup);
+			map.put(NioSocketChannel, IkvmWebSocketChannel);
 		}
 
 		return new(map);

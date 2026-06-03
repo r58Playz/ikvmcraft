@@ -32,6 +32,12 @@ class Bundle:
     prefixes: list[str]      # class-name prefixes this DLL serves
     aot: bool = True
     always_replace: bool = False
+    # Extra "group:artifact:version" coords to drop from the JIT classpath whenever this bundle is
+    # active. Use for jars that ship a *subset* of classes under this bundle's prefixes (e.g. Mojang's
+    # patchy, which bundles a patched io.netty.bootstrap.Bootstrap): leaving them on the classpath lets
+    # Knot/URLClassLoader load that one class while the rest of the package comes from the AOT bundle,
+    # which splits the runtime package and throws IllegalAccessError on package-private access.
+    hide_jars: list[str] = field(default_factory=list)
 
 
 BUNDLES: list[Bundle] = [
@@ -91,6 +97,19 @@ BUNDLES: list[Bundle] = [
         ],
         prefixes=["it.unimi.dsi.fastutil."],
         aot=True,
+    ),
+    Bundle(
+        name="netty",
+        output_dir="jars",
+        output_dll="ikvmc_netty-4.1.25.dll",
+        jars=[
+            "io.netty:netty-all:4.1.25.Final",
+        ],
+        prefixes=["io.netty."],
+        aot=False,
+        # Mojang's patchy ships only io.netty.bootstrap.Bootstrap; with netty-all AOT'd it would be the
+        # lone io.netty class still loaded JIT, splitting the io.netty.bootstrap package across loaders.
+        hide_jars=["com.mojang:patchy:1.3.9"],
     ),
 ]
 
@@ -178,6 +197,19 @@ def emit_manifest(bundles: list[Bundle]) -> None:
                 "relativePath": resolved.relative_path,
             })
 
+        hide_entries = []
+        for coord in bundle.hide_jars:
+            resolved = parse_jar_ref(coord)
+            if resolved.gav is None:
+                raise ValueError(f"bundle '{bundle.name}' hide_jars entry '{coord}' must be a maven coord")
+            group, artifact, version = resolved.gav
+            hide_entries.append({
+                "group": group,
+                "artifact": artifact,
+                "version": version,
+                "relativePath": resolved.relative_path,
+            })
+
         assembly_name = bundle.output_dll
         if assembly_name.endswith(".dll"):
             assembly_name = assembly_name[: -len(".dll")]
@@ -188,6 +220,7 @@ def emit_manifest(bundles: list[Bundle]) -> None:
             "prefixes": list(bundle.prefixes),
             "alwaysReplace": bundle.always_replace,
             "jars": jar_entries,
+            "hideJars": hide_entries,
         })
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

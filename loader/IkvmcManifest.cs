@@ -96,6 +96,7 @@ internal sealed class IkvmcManifest
 			if (bundle.AlwaysReplace)
 			{
 				activeDlls.Add((bundle.Prefixes, bundle.AssemblyName));
+				AddHiddenJars(bundle, jarsToSkip);
 				continue;
 			}
 
@@ -128,9 +129,27 @@ internal sealed class IkvmcManifest
 					jarsToSkip.Add(jar.RelativePath);
 				}
 			}
+			AddHiddenJars(bundle, jarsToSkip);
 		}
 
 		return new IkvmcMatchResult(activeDlls.ToArray(), jarsToSkip);
+	}
+
+	/// <summary>
+	/// Drop a bundle's declared <see cref="IkvmcBundle.HideJars"/> from the JIT classpath. These are
+	/// jars that ship a subset of classes under the bundle's prefixes (e.g. patchy's patched
+	/// io.netty.bootstrap.Bootstrap); left on the classpath they split the runtime package between the
+	/// AOT bundle and URLClassLoader/Knot and trigger IllegalAccessError.
+	/// </summary>
+	private static void AddHiddenJars(IkvmcBundle bundle, HashSet<string> jarsToSkip)
+	{
+		foreach (var jar in bundle.HideJars)
+		{
+			if (!string.IsNullOrWhiteSpace(jar.RelativePath))
+			{
+				jarsToSkip.Add(jar.RelativePath);
+			}
+		}
 	}
 
 	private static string ParseMavenCoords(string name)
@@ -151,6 +170,7 @@ internal sealed class IkvmcBundle
 	public string[] Prefixes { get; init; } = Array.Empty<string>();
 	public bool AlwaysReplace { get; init; }
 	public IkvmcBundleJar[] Jars { get; init; } = Array.Empty<IkvmcBundleJar>();
+	public IkvmcBundleJar[] HideJars { get; init; } = Array.Empty<IkvmcBundleJar>();
 }
 
 internal sealed class IkvmcBundleJar

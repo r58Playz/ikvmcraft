@@ -173,6 +173,17 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 			}
 		}
 
+		// Always-on: make log4j's no-arg getLogger() AOT-safe (see CallerSensitiveLoggerFix). Guarded
+		// so a rewrite hiccup on some odd class can't break class loading.
+		try
+		{
+			bytes = CallerSensitiveLoggerFix.Apply(bytes);
+		}
+		catch (Exception e)
+		{
+			classloader_debug($"[IkvmClassLoader] CallerSensitiveLoggerFix skipped '{name}': {e.Message}");
+		}
+
 		return bytes;
 	}
 

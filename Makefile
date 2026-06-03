@@ -1,5 +1,6 @@
 STATICS_RELEASE=64a28d8c-a148-440b-a848-3246372c5c42
 IKVM_RELEASE=f54599ce-05cb-4703-b84b-b4ba0f593b77
+EPOXY_BASE=https://puter-net.b-cdn.net/epoxy/f006127
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
@@ -17,6 +18,8 @@ statics:
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl3-mt.a -O statics/liblwjgl3.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/liblwjgl_stb-mt.a -O statics/liblwjgl_stb.a
 	wget https://github.com/r58Playz/IKVM-WASM-Build/releases/download/$(IKVM_RELEASE)/libffi-mt.a -O statics/libffi.a
+	wget $(EPOXY_BASE)/full.js -O statics/epoxy-full.js
+	wget $(EPOXY_BASE)/full.wasm -O statics/epoxy-full.wasm
 	unzip -q -o statics/emsdk.zip -d statics/
 
 deps: statics
