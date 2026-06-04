@@ -554,6 +554,19 @@ type APIType = {
 	 */
 	getConfig: () => MonoConfig;
 	/**
+	 * EventPipe CPU-sampling profiler. Requires EnableDiagnostics + WasmPerformanceInstrumentation.
+	 * Records for `durationSeconds` then resolves with the raw .nettrace chunks and (unless
+	 * skipDownload) triggers a browser download of `trace.<ts>.nettrace`.
+	 */
+	collectCpuSamples: (options?: {
+		durationSeconds?: number;
+		intervalSeconds?: number;
+		skipDownload?: boolean;
+		circularBufferMB?: number;
+	}) => Promise<Uint8Array[]>;
+	collectMetrics: (options?: { durationSeconds?: number; skipDownload?: boolean }) => Promise<Uint8Array[]>;
+	collectGcDump: (options?: { skipDownload?: boolean }) => Promise<Uint8Array[]>;
+	/**
 	 * Executes scripts which were loaded during runtime bootstrap.
 	 * You can register the scripts using MonoConfig.resources.modulesAfterConfigLoaded and MonoConfig.resources.modulesAfterRuntimeReady.
 	 */

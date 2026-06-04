@@ -1,9 +1,10 @@
-STATICS_RELEASE=64a28d8c-a148-440b-a848-3246372c5c42
+STATICS_RELEASE=e3b702ce-5dec-4c13-b109-3e07d1100268
 IKVM_RELEASE=f54599ce-05cb-4703-b84b-b4ba0f593b77
 EPOXY_BASE=https://puter-net.b-cdn.net/epoxy/f006127
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
+PROFILER?=false
 
 statics:
 	mkdir statics
@@ -40,7 +41,7 @@ build: ikvmc-bundles
 	./aotprofile.sh jars/ikvmc_fastutil-8.2.1.aotprofile jars/ikvmc_fastutil-8.2.1.dll \
 		@fastutil-aot-classes.txt
 #
-	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
+	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) -p:IkvmWasmEnableProfiler=$(PROFILER) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
 	# dotnet messed up

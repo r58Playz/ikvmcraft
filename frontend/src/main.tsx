@@ -1,6 +1,6 @@
 import { css, FC } from "dreamland/core";
 import "./style.css";
-import { loglisteners, initDotnet, play } from "./dotnet";
+import { loglisteners, initDotnet, play, crashMinecraftF3C, collectTrace } from "./dotnet";
 import { downloadFabricMinecraftVersionToOpfs, downloadMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
 
 function LogView(this: FC<{ scrolling: boolean }>) {
@@ -48,7 +48,7 @@ LogView.css = `
 	}
 `;
 
-function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
+function App(this: FC<{}, { canvas: HTMLCanvasElement, duration: string }>) {
 	this.cx.mount = async () => {
 		if (!(await isMinecraftVersionDownloaded("1.16.1-fabric-0.19.2", { verifyHashes: true })))
 			await downloadFabricMinecraftVersionToOpfs("1.16.1", { loaderVersion: "0.19.2" });
@@ -60,9 +60,22 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 		await play("1.16.1-fabric-0.19.2");
 	};
 
+	this.duration = "30";
+
+	let trace = () => {
+		collectTrace(+this.duration);
+	}
+
 	return (
 		<div>
 			<canvas id="canvas" class="canvas" this={use(this.canvas)} />
+			<div class="debug">
+				<button on:click={crashMinecraftF3C}>F3+C</button>
+				<div>
+				<input type="text" value={use(this.duration)} />
+				<button on:click={trace}>Collect Trace</button>
+				</div>
+			</div>
 			<LogView scrolling={true} />
 		</div>
 	)
@@ -80,6 +93,11 @@ App.style = css`
 		flex: 1;
 		align-self: stretch;
 		background: #eee;
+	}
+
+	.debug {
+		display: flex;
+		gap: 1rem;
 	}
 `;
 

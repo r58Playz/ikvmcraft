@@ -2,6 +2,7 @@
 	<PropertyGroup>
 		<IkvmWasmEnableAot Condition="'$(IkvmWasmEnableAot)' == ''">false</IkvmWasmEnableAot>
 		<IkvmWasmEnableWasmOpt Condition="'$(IkvmWasmEnableWasmOpt)' == ''">false</IkvmWasmEnableWasmOpt>
+		<IkvmWasmEnableProfiler Condition="'$(IkvmWasmEnableProfiler)' == ''">false</IkvmWasmEnableProfiler>
 
 		<TargetFramework>net10.0</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -56,6 +57,10 @@
 		<__EmscriptenUpstreamEmscriptenPath>$(EmsdkRoot)emscripten/</__EmscriptenUpstreamEmscriptenPath>
 		<__EmscriptenNodeToolsPath>$(EmsdkRoot)node/bin/node</__EmscriptenNodeToolsPath>
 		<__WasmClang>$(EmsdkRoot)emscripten/emcc</__WasmClang>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(IkvmWasmEnableProfiler)' == 'true'">
+		<EnableDiagnostics>true</EnableDiagnostics>
 	</PropertyGroup>
 
 	<ItemGroup>

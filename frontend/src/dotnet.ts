@@ -1,7 +1,7 @@
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "./dotnetdefs";
 import { EpxTcpWs } from "./net";
 
-function crashMinecraftF3C(holdMs = 10500) {
+export function crashMinecraftF3C(holdMs = 10500) {
 	const send = (type: string, code: string, key: string, repeat: boolean) =>
 		document.dispatchEvent(new KeyboardEvent(type, {
 			code, key, repeat, bubbles: true, cancelable: true,
@@ -129,6 +129,8 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		//.withEnvironmentVariable("MONO_LOG_MASK", "gc")
 		//.withEnvironmentVariable("MONO_LOG_MASK", "aot")
 		.withEnvironmentVariable("MONO_GC_PARAMS", "nursery-size=16m")
+		.withEnvironmentVariable("DOTNET_DiagnosticPorts", "js://ondemand,nosuspend")
+		.withEnvironmentVariable("DOTNET_WasmPerformanceInstrumentation", "eventpipe,callspec=all")
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
@@ -179,6 +181,81 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.debug("dotnet initialized");
 	console.timeEnd("dotnet ");
 }
+
+/**
+ * Collect an EventPipe CPU-sampling .nettrace, on demand, from the main/UI thread.
+ *
+ * The EventPipe diagnostic server (and its JS `serverSession`) live on a worker thread, so
+ * collection runs there. We bridge across threads through a shared-memory control block
+ * exposed by the app's Emscripten.c (`diag_trace_*`): the UI thread posts a request, the DS
+ * worker services it from its own poll loop and `_malloc`s + publishes the bytes, and we read
+ * them back out of `HEAPU8` here. Our harness (not the runtime) then writes OPFS, so the
+ * trace survives page exit.
+ *
+ * Requires a profiler-enabled build (IkvmWasmEnableProfiler=true) on the patched runtime.
+ * View with: PerfView, Visual Studio, `dotnet-trace convert --format speedscope`,
+ * or https://ui.perfetto.dev (after converting).
+ */
+export async function collectTrace(durationSeconds = 10): Promise<number> {
+	const Module: any = (globalThis as any).wasm?.Module;
+	if (!Module || typeof Module._diag_trace_request !== "function" || typeof Module._diag_stream_is_done !== "function")
+		throw new Error("diag trace shims unavailable — need a profiler build (IkvmWasmEnableProfiler=true) on the patched runtime");
+
+	// clear the cross-worker .nettrace accumulator + done flag from any previous run
+	Module._diag_stream_reset();
+
+	console.debug(`[trace] requesting ${durationSeconds}s CPU trace from the DS worker...`);
+	Module._diag_trace_request(Math.round(durationSeconds * 1000));
+
+	// Wait for the session to finish. The cross-worker connection close isn't observed on the
+	// main thread (the streaming worker has no socket_handles), so diag_stream_is_done may never
+	// flip; instead treat the stream as complete once it has PLATEAUED (no growth for a stable
+	// window) after the requested collection duration. The post-stop rundown (all loaded
+	// methods/assemblies — large for IKVM) streams slowly, so allow a generous hard timeout.
+	const start = performance.now();
+	const stableMs = 3000;                              // no growth for this long => done
+	const hardTimeoutMs = durationSeconds * 1000 + 240000;
+	let lastLen = -1;
+	let lastChange = performance.now();
+	for (;;) {
+		const now = performance.now();
+		if (Module._diag_stream_is_done()) break;       // clean close, if it ever happens
+		const cur = Module._diag_stream_len() | 0;
+		if (cur !== lastLen) { lastLen = cur; lastChange = now; }
+		else if (cur > 0 && now - start > durationSeconds * 1000 && now - lastChange > stableMs) break;
+		if (now - start > hardTimeoutMs)
+			throw new Error("[trace] timed out (stream never plateaued; len=" + lastLen + ")");
+		await new Promise((r) => setTimeout(r, 250));
+	}
+
+	const ptr = Module._diag_stream_ptr() >>> 0;
+	const len = Module._diag_stream_len() | 0;
+	if (!ptr || len <= 0) {
+		Module._diag_stream_reset();
+		throw new Error("[trace] session closed but no .nettrace bytes were captured (see console)");
+	}
+	const bytes: Uint8Array = Module.HEAPU8.slice(ptr, ptr + len);
+	Module._diag_stream_reset();
+
+	// persist to OPFS from our harness so it survives page exit
+	const name = `trace-${Date.now()}.nettrace`;
+	try {
+		const root = await navigator.storage.getDirectory();
+		const dir = await root.getDirectoryHandle("traces", { create: true });
+		const fh = await dir.getFileHandle(name, { create: true });
+		const w = await fh.createWritable();
+		await w.write(bytes);
+		await w.close();
+		console.debug(`[trace] wrote ${len} bytes to OPFS /traces/${name}`);
+	} catch (e) {
+		console.error(`[trace] OPFS write failed: ${e}`);
+	}
+
+	(globalThis as any).__lastTrace = bytes;
+	console.debug(`[trace] done: ${len} bytes (globalThis.__lastTrace, OPFS /traces/${name})`);
+	return len;
+}
+(globalThis as any).collectTrace = collectTrace;
 
 export async function play(version: string) {
 	console.debug("Run...");
