@@ -2,6 +2,7 @@ import { css, FC } from "dreamland/core";
 import "./style.css";
 import { loglisteners, initDotnet, play, crashMinecraftF3C, dumpJiterpHeat } from "./dotnet";
 import { downloadFabricMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
+import { OpfsExplorer } from "./fs";
 
 function LogView(this: FC<{ scrolling: boolean }>) {
 	const create = (color: string, log: string) => {
@@ -48,7 +49,9 @@ LogView.css = `
 	}
 `;
 
-function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
+function App(this: FC<{}, { canvas: HTMLCanvasElement; fsOpen: boolean }>) {
+	this.fsOpen = false;
+
 	this.cx.mount = async () => {
 		if (!(await isMinecraftVersionDownloaded("1.16.1-fabric-0.19.2", { verifyHashes: true })))
 			await downloadFabricMinecraftVersionToOpfs("1.16.1", { loaderVersion: "0.19.2" });
@@ -66,8 +69,10 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 			<div class="debug">
 				<button on:click={crashMinecraftF3C}>F3+C</button>
 				<button on:click={() => dumpJiterpHeat(60)}>Jiterp Heat</button>
+				<button on:click={() => (this.fsOpen = !this.fsOpen)}>Files</button>
 			</div>
 			<LogView scrolling={true} />
+			<OpfsExplorer open={use(this.fsOpen)} />
 		</div>
 	)
 }
