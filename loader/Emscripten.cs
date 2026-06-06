@@ -2,12 +2,21 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 public static class Emscripten
 {
     [DllImport("Emscripten")]
     private static extern void start_em_loop();
+
+    [DllImport("Emscripten")]
+    private static extern void install_thread_log_forwarder();
+    public static void InstallThreadLogForwarder() => install_thread_log_forwarder();
+
+    [DllImport("Emscripten")]
+    private static extern void ikvm_pgo_add_method(IntPtr method);
+	public static void PgoAddMethod(MethodBase method) => ikvm_pgo_add_method(method.MethodHandle.Value);
 
     private static TaskCompletionSource EmLoopTask;
     private static Func<bool> EmLoopCb;

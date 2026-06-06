@@ -8,6 +8,14 @@ public static class IkvmKnotBridge
 	{
 		return IkvmClassLoader.LatestInstance.TransformClassBytecode(name, array);
 	}
+
+	// Called from the patched tryLoadClass with the class Knot just defined, before it is returned
+	// (and thus before any of its methods run). Lets us seed the interp PGO table for hot classes
+	// at exactly the right moment, with the real (post-mixin) Class in hand.
+	public static void OnClassDefined(java.lang.Class klass)
+	{
+		IkvmClassLoader.PgoOnClassDefined(klass);
+	}
 }
 
 internal class InjectIkvmIntoKnotTransform : ClassNode
@@ -43,6 +51,18 @@ internal class InjectIkvmIntoKnotTransform : ClassNode
 		c.EmitMethod(Opcodes.INVOKESTATIC, "cli/IkvmKnotBridge", "Transform", "(Ljava/lang/String;[B)[B");
 		c.EmitAStore(bytearrayLocal);
 		c.EmitLabel(skip);
+
+		// Seed interp PGO the instant a class is defined: dup the Class returned by defineClassFwd
+		// (still on the stack, about to be areturn'd) and hand it to the bridge. This is post-define
+		// and pre-first-call, so a hot method is always tiered before mono ever compiles it tier-0.
+		c.GotoNext(
+			JavaMoveType.After,
+			JavaMatch.Method(Opcodes.INVOKEINTERFACE,
+				"net/fabricmc/loader/impl/launch/knot/KnotClassDelegate$ClassLoaderAccess",
+				"defineClassFwd",
+				"(Ljava/lang/String;[BIILjava/security/CodeSource;)Ljava/lang/Class;", true));
+		c.Emit(Opcodes.DUP);
+		c.EmitMethod(Opcodes.INVOKESTATIC, "cli/IkvmKnotBridge", "OnClassDefined", "(Ljava/lang/Class;)V");
 
 		accept(Writer);
 	}

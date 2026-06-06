@@ -1,7 +1,7 @@
 import { css, FC } from "dreamland/core";
 import "./style.css";
-import { loglisteners, initDotnet, play, crashMinecraftF3C, collectTrace } from "./dotnet";
-import { downloadFabricMinecraftVersionToOpfs, downloadMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
+import { loglisteners, initDotnet, play, crashMinecraftF3C, dumpJiterpHeat } from "./dotnet";
+import { downloadFabricMinecraftVersionToOpfs, isMinecraftVersionDownloaded } from "./minecraft";
 
 function LogView(this: FC<{ scrolling: boolean }>) {
 	const create = (color: string, log: string) => {
@@ -48,7 +48,7 @@ LogView.css = `
 	}
 `;
 
-function App(this: FC<{}, { canvas: HTMLCanvasElement, duration: string }>) {
+function App(this: FC<{}, { canvas: HTMLCanvasElement }>) {
 	this.cx.mount = async () => {
 		if (!(await isMinecraftVersionDownloaded("1.16.1-fabric-0.19.2", { verifyHashes: true })))
 			await downloadFabricMinecraftVersionToOpfs("1.16.1", { loaderVersion: "0.19.2" });
@@ -60,21 +60,12 @@ function App(this: FC<{}, { canvas: HTMLCanvasElement, duration: string }>) {
 		await play("1.16.1-fabric-0.19.2");
 	};
 
-	this.duration = "30";
-
-	let trace = () => {
-		collectTrace(+this.duration);
-	}
-
 	return (
 		<div>
 			<canvas id="canvas" class="canvas" this={use(this.canvas)} />
 			<div class="debug">
 				<button on:click={crashMinecraftF3C}>F3+C</button>
-				<div>
-				<input type="text" value={use(this.duration)} />
-				<button on:click={trace}>Collect Trace</button>
-				</div>
+				<button on:click={() => dumpJiterpHeat(60)}>Jiterp Heat</button>
 			</div>
 			<LogView scrolling={true} />
 		</div>

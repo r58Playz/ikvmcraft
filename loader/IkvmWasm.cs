@@ -65,6 +65,8 @@ static partial class IkvmWasm
     {
         try
         {
+            Emscripten.InstallThreadLogForwarder();
+
             Emscripten.MountOpfs();
 
             Emscripten.MountFetch(0, fetchbase + "/image", "/ikvm");
@@ -127,10 +129,17 @@ static partial class IkvmWasm
     }
 
     [JSExport]
-    internal static Task Run(string version)
+    internal static Task Run(string version, JSObject rawProfile)
     {
         try
         {
+			// each method entry is "mojmapMethodName|mojmapJvmDescriptor" e.g.
+			// "getBlockState|(Lnet/minecraft/util/math/BlockPos;)Lnet/minecraft/block/BlockState;"
+			IkvmPgoProfile profile = new(ConvertJSObjectToStringArray(rawProfile).ToDictionary(x => x[0], x => x.Skip(1).Select(x => {
+				var split = x.Split("|", 2);
+				return (split[0], split[1]);
+			}).ToArray()));
+
             Console.WriteLine($"[IKVM] running mc {version}");
 
             MinecraftLauncher.LaunchVanilla(new()
@@ -145,12 +154,18 @@ static partial class IkvmWasm
 				PlayerName = "ikvmcraft",
                 AsmTransformers =
                 [
-					RemoveDfuPreloadTransform.Transformer,
-					SwapNettyBackendTransform.Transformer,
 					InjectIkvmIntoKnotTransform.Transformer,
+					SwapNettyBackendTransform.Transformer,
+
 					ThereAreNoBareClientsTransform.Transformer,
+
 					FixCrashReportTransform.Transformer,
+
+					RemoveDfuPreloadTransform.Transformer,
+					NoopAssertThreadTransform.Transformer,
+					NoopCheckAllocatedTransform.Transformer,
 				],
+				PgoProfile = profile,
             });
 
             return Task.CompletedTask;

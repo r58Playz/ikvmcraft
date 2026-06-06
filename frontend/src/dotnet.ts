@@ -128,9 +128,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		//.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
 		//.withEnvironmentVariable("MONO_LOG_MASK", "gc")
 		//.withEnvironmentVariable("MONO_LOG_MASK", "aot")
-		.withEnvironmentVariable("MONO_GC_PARAMS", "nursery-size=16m")
-		.withEnvironmentVariable("DOTNET_DiagnosticPorts", "js://ondemand,nosuspend")
-		.withEnvironmentVariable("DOTNET_WasmPerformanceInstrumentation", "eventpipe,callspec=all")
+		.withEnvironmentVariable("MONO_GC_PARAMS", "nursery-size=128m")
 		//.withEnvironmentVariable("IKVM_FROMCLASS_TRACE", "1")
 		//.withEnvironmentVariable("IKVM_UNSAFE_OFFSET_TRACE", "1")
 		.withRuntimeOptions([
@@ -141,16 +139,20 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 			`--jiterpreter-back-branch-boost=${980}`, // make sure this is below trace hit count
 			`--jiterpreter-minimum-distance-between-traces=${3}`,
 			`--jiterpreter-trace-monitoring-period=${500}`,
-			`--jiterpreter-trace-monitoring-max-average-penalty=${50}`,
+			`--jiterpreter-trace-monitoring-max-average-penalty=${75}`,
 
 			// increase jit function limits
 			`--jiterpreter-wasm-bytes-limit=${64 * 1024 * 1024}`,
 			`--jiterpreter-max-module-size=${64 * 1024 - 1}`,
 			`--jiterpreter-table-size=${32 * 1024}`,
+			`--jiterpreter-aot-table-size=${32 * 1024}`,
 
 			// print jit stats
-			`--jiterpreter-stats-enabled`,
-			
+			//`--jiterpreter-stats-enabled`,
+			//`--jiterpreter-count-bailouts`,
+			//`--jiterpreter-estimate-heat`,
+
+			//`--jiterpreter-direct-jit-calls=false`,
 
 			//`--no-jiterpreter-jit-call-enabled`,
 			//`--no-jiterpreter-interp-entry-enabled`,
@@ -182,87 +184,141 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	console.timeEnd("dotnet ");
 }
 
-/**
- * Collect an EventPipe CPU-sampling .nettrace, on demand, from the main/UI thread.
- *
- * The EventPipe diagnostic server (and its JS `serverSession`) live on a worker thread, so
- * collection runs there. We bridge across threads through a shared-memory control block
- * exposed by the app's Emscripten.c (`diag_trace_*`): the UI thread posts a request, the DS
- * worker services it from its own poll loop and `_malloc`s + publishes the bytes, and we read
- * them back out of `HEAPU8` here. Our harness (not the runtime) then writes OPFS, so the
- * trace survives page exit.
- *
- * Requires a profiler-enabled build (IkvmWasmEnableProfiler=true) on the patched runtime.
- * View with: PerfView, Visual Studio, `dotnet-trace convert --format speedscope`,
- * or https://ui.perfetto.dev (after converting).
- */
-export async function collectTrace(durationSeconds = 10): Promise<number> {
-	const Module: any = (globalThis as any).wasm?.Module;
-	if (!Module || typeof Module._diag_trace_request !== "function" || typeof Module._diag_stream_is_done !== "function")
-		throw new Error("diag trace shims unavailable — need a profiler build (IkvmWasmEnableProfiler=true) on the patched runtime");
+// Interp PGO profile: mojmap class -> [mojmap method name, mojmap JVM descriptor][].
+// These are the hottest *interpreter* methods from gameplay heat dumps
+export type PgoProfile = Record<string, [string, string][]>;
 
-	// clear the cross-worker .nettrace accumulator + done flag from any previous run
-	Module._diag_stream_reset();
-
-	console.debug(`[trace] requesting ${durationSeconds}s CPU trace from the DS worker...`);
-	Module._diag_trace_request(Math.round(durationSeconds * 1000));
-
-	// Wait for the session to finish. The cross-worker connection close isn't observed on the
-	// main thread (the streaming worker has no socket_handles), so diag_stream_is_done may never
-	// flip; instead treat the stream as complete once it has PLATEAUED (no growth for a stable
-	// window) after the requested collection duration. The post-stop rundown (all loaded
-	// methods/assemblies — large for IKVM) streams slowly, so allow a generous hard timeout.
-	const start = performance.now();
-	const stableMs = 3000;                              // no growth for this long => done
-	const hardTimeoutMs = durationSeconds * 1000 + 240000;
-	let lastLen = -1;
-	let lastChange = performance.now();
-	for (;;) {
-		const now = performance.now();
-		if (Module._diag_stream_is_done()) break;       // clean close, if it ever happens
-		const cur = Module._diag_stream_len() | 0;
-		if (cur !== lastLen) { lastLen = cur; lastChange = now; }
-		else if (cur > 0 && now - start > durationSeconds * 1000 && now - lastChange > stableMs) break;
-		if (now - start > hardTimeoutMs)
-			throw new Error("[trace] timed out (stream never plateaued; len=" + lastLen + ")");
-		await new Promise((r) => setTimeout(r, 250));
-	}
-
-	const ptr = Module._diag_stream_ptr() >>> 0;
-	const len = Module._diag_stream_len() | 0;
-	if (!ptr || len <= 0) {
-		Module._diag_stream_reset();
-		throw new Error("[trace] session closed but no .nettrace bytes were captured (see console)");
-	}
-	const bytes: Uint8Array = Module.HEAPU8.slice(ptr, ptr + len);
-	Module._diag_stream_reset();
-
-	// persist to OPFS from our harness so it survives page exit
-	const name = `trace-${Date.now()}.nettrace`;
-	try {
-		const root = await navigator.storage.getDirectory();
-		const dir = await root.getDirectoryHandle("traces", { create: true });
-		const fh = await dir.getFileHandle(name, { create: true });
-		const w = await fh.createWritable();
-		await w.write(bytes);
-		await w.close();
-		console.debug(`[trace] wrote ${len} bytes to OPFS /traces/${name}`);
-	} catch (e) {
-		console.error(`[trace] OPFS write failed: ${e}`);
-	}
-
-	(globalThis as any).__lastTrace = bytes;
-	console.debug(`[trace] done: ${len} bytes (globalThis.__lastTrace, OPFS /traces/${name})`);
-	return len;
-}
-(globalThis as any).collectTrace = collectTrace;
+let pgoProfile: PgoProfile = {
+	// texture upload / pixel access. checkAllocated is the #1 hottest trace (98M hits, never jitted)
+	// because its tier-0 callers (getPixelRGBA/setPixelRGBA/_upload) never inline it.
+	"com.mojang.blaze3d.platform.NativeImage": [
+		["checkAllocated", "()V"],
+		["getPixelRGBA", "(II)I"],                 // method_4315, 65M
+		["setPixelRGBA", "(III)V"],                // method_4305, 32M
+		["getLuminanceOrAlpha", "(II)B"],
+		["makePixelArray", "()[I"],
+		["_upload", "(IIIIIIIZZZZ)V"],
+	],
+	// #2 hottest (70M) — guards nearly every GL call on the render thread.
+	"com.mojang.blaze3d.systems.RenderSystem": [
+		["assertThread", "(Ljava/util/function/Supplier;)V"],
+		["recordRenderCall", "(Lcom/mojang/blaze3d/pipeline/RenderCall;)V"],
+	],
+	// block/fluid lookups — the chunk-access hot path (getBlockState 58M + 44M + 15M).
+	"net.minecraft.world.level.Level": [
+		["getBlockState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"],
+		["getFluidState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"],
+		// lithium mixin-added method on Level — not in mojmap, matched by literal name (empty descriptor
+		// => by-name; it's unique). 56M, the biggest single unmapped hitter.
+		["getChunkLithium", ""],
+	],
+	"net.minecraft.world.level.chunk.LevelChunk": [
+		["getBlockState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"],
+		["getFluidState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"],
+	],
+	"net.minecraft.world.level.chunk.ProtoChunk": [
+		["getBlockState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"],
+		["getFluidState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"],
+	],
+	// the section/palette array access reached through getBlockState.
+	"net.minecraft.world.level.chunk.LevelChunkSection": [
+		["getBlockState", "(III)Lnet/minecraft/world/level/block/state/BlockState;"],
+		["getFluidState", "(III)Lnet/minecraft/world/level/material/FluidState;"],
+		["isRandomlyTicking", "()Z"],   // class_2826.method_12262, 10M
+	],
+	"net.minecraft.world.level.chunk.PalettedContainer": [
+		["get", "(III)Ljava/lang/Object;"],
+	],
+	// #7 hottest (38M) — entity data tracker reads, called per-entity per-tick.
+	"net.minecraft.network.syncher.SynchedEntityData": [
+		["getItem", "(Lnet/minecraft/network/syncher/EntityDataAccessor;)Lnet/minecraft/network/syncher/SynchedEntityData$DataItem;"],
+	],
+	// face-culling during chunk meshing (13M).
+	"net.minecraft.world.level.block.Block": [
+		["shouldRenderFace", "(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/Direction;)Z"],
+	],
+	// coordinate accessors — inlined into every block lookup / index computation.
+	"net.minecraft.core.Vec3i": [
+		["getX", "()I"],
+		["getY", "()I"],
+		["getZ", "()I"],
+	],
+	"net.minecraft.core.BlockPos": [
+		["relative", "(Lnet/minecraft/core/Direction;)Lnet/minecraft/core/BlockPos;"],   // method_10093, 14M
+		["above", "()Lnet/minecraft/core/BlockPos;"],
+		["asLong", "()J"],
+		["asLong", "(III)J"],     // static pack
+		["getX", "(J)I"],         // static unpack
+		["getY", "(J)I"],
+		["getZ", "(J)I"],
+	],
+	"net.minecraft.core.BlockPos$MutableBlockPos": [
+		["move", "(Lnet/minecraft/core/Direction;I)Lnet/minecraft/core/BlockPos$MutableBlockPos;"],          // method_10104, 10M
+		["setWithOffset", "(Lnet/minecraft/core/Vec3i;III)Lnet/minecraft/core/BlockPos$MutableBlockPos;"],   // method_25504, 7.4M
+	],
+	// stack comparison in inventory / entity ticking (8M).
+	"net.minecraft.world.item.ItemStack": [
+		["matches", "(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Z"],
+	],
+	// per-vertex build path. BufferVertexConsumer provides the default impls for these (the heat dump
+	// attributes them to class_4584/<default>); they're declared on the VertexConsumer interface in the
+	// intermediary mapping, so the name-map misses and they resolve via the signature fallback. These
+	// surfaced as the top non-RenderSystem hitters once the texture/block cost dropped (vertex 29M,
+	// color 28M). Each returns VertexConsumer (for chaining); distinct param sigs keep matching exact.
+	"com.mojang.blaze3d.vertex.BufferVertexConsumer": [
+		["vertex",  "(DDD)Lcom/mojang/blaze3d/vertex/VertexConsumer;"],   // method_22912, 29M
+		["color",   "(IIII)Lcom/mojang/blaze3d/vertex/VertexConsumer;"],  // method_1336, 28M
+		["normal",  "(FFF)Lcom/mojang/blaze3d/vertex/VertexConsumer;"],
+		["uv",      "(FF)Lcom/mojang/blaze3d/vertex/VertexConsumer;"],    // method_22913
+		["uvShort", "(SSI)Lcom/mojang/blaze3d/vertex/VertexConsumer;"],   // method_22899
+	],
+	// GL vertex-state teardown, per draw (class_293.method_22651, 6M).
+	"com.mojang.blaze3d.vertex.VertexFormat": [
+		["clearBufferState", "()V"],
+	],
+	// face-occlusion test during chunk meshing (class_259.method_20713, ~3M).
+	"net.minecraft.world.phys.shapes.Shapes": [
+		["faceShapeOccludes", "(Lnet/minecraft/world/phys/shapes/VoxelShape;Lnet/minecraft/world/phys/shapes/VoxelShape;)Z"],
+	],
+	// model quads during chunk meshing (class_1097.method_4707, 15M).
+	"net.minecraft.client.resources.model.WeightedBakedModel": [
+		["getQuads", "(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;Ljava/util/Random;)Ljava/util/List;"],
+	],
+	// per-block render-layer lookup during meshing (class_4696.method_23679, 10M).
+	"net.minecraft.client.renderer.ItemBlockRenderTypes": [
+		["getChunkRenderType", "(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/client/renderer/RenderType;"],
+	],
+	// the render region's block/fluid access — getBlockState/getFluidState are BlockGetter-declared,
+	// so they resolve via the signature fallback (class_1950.method_8320, 8M).
+	"net.minecraft.world.level.PathNavigationRegion": [
+		["getBlockState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;"],
+		["getFluidState", "(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/material/FluidState;"],
+	],
+	// light lookup during meshing (class_4538.method_22346, default on LevelReader, ~5M).
+	"net.minecraft.world.level.LevelReader": [
+		["getMaxLocalRawBrightness", "(Lnet/minecraft/core/BlockPos;I)I"],
+	],
+};
 
 export async function play(version: string) {
+	let mappedProfile = Object.entries(pgoProfile).map(([klass, funcs]) => [klass, ...funcs.map(([name, desc]) => `${name}|${desc}`)]);
+
 	console.debug("Run...");
-	await exports.IkvmWasm.Run(version)
+	await exports.IkvmWasm.Run(version, mappedProfile);
 	//await exports.IkvmWasm.RunJar("/assets/log4j-demo.jar")
 	//await exports.IkvmWasm.RunJar("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.game.VoxelGameGL");
 	//await exports.IkvmWasm.RunJar("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.opengl.camera.FreeCameraDemo");
 	//await exports.IkvmWasm.RunJar("/assets/lwjgl3-demos.jar", "org.lwjgl.demo.opengl.shadow.ShadowMappingDemo20");
 	console.debug("Exited");
 }
+
+/**
+ * Dump the hottest jiterpreter trace entry points
+ * A hot method showing jit<eps (few/no compiled entry points) is one the jiterpreter couldn't
+ * trace — i.e. an interpreter-time / inlining target.
+ */
+export function dumpJiterpHeat(top = 60): void {
+	(globalThis as any).wasm?.Module._dump_jiterp_trace_heat(top);
+	(globalThis as any).wasm.runtime.INTERNAL.jiterpreter_dump_stats(false);
+}
+(globalThis as any).dumpJiterpHeat = dumpJiterpHeat;

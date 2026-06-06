@@ -2,7 +2,6 @@
 	<PropertyGroup>
 		<IkvmWasmEnableAot Condition="'$(IkvmWasmEnableAot)' == ''">false</IkvmWasmEnableAot>
 		<IkvmWasmEnableWasmOpt Condition="'$(IkvmWasmEnableWasmOpt)' == ''">false</IkvmWasmEnableWasmOpt>
-		<IkvmWasmEnableProfiler Condition="'$(IkvmWasmEnableProfiler)' == ''">false</IkvmWasmEnableProfiler>
 
 		<TargetFramework>net10.0</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -59,18 +58,14 @@
 		<__WasmClang>$(EmsdkRoot)emscripten/emcc</__WasmClang>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(IkvmWasmEnableProfiler)' == 'true'">
-		<EnableDiagnostics>true</EnableDiagnostics>
-	</PropertyGroup>
-
 	<ItemGroup>
 		<EmscriptenEnvVars Include="WASM_ENABLE_JSPI=1" />
 
 		<AOTWhitelist Include="System.Private.CoreLib" />
 		<AOTWhitelist Include="System" />
 		<AOTWhitelist Include="System.Collections" />
-		<!--
 		<AOTWhitelist Include="System.Collections.Concurrent" />
+		<!--
 		<AOTWhitelist Include="System.Collections.Immutable" />
 		<AOTWhitelist Include="System.Collections.NonGeneric" />
 		<AOTWhitelist Include="System.Collections.Specialized" />
@@ -86,16 +81,16 @@
 		<AOTWhitelist Include="System.Private.Uri" />
 		<AOTWhitelist Include="System.Private.Xml" />
 		<AOTWhitelist Include="System.Private.Xml.Linq" />
+		-->
 		<AOTWhitelist Include="System.Reflection" />
-		<AOTWhitelist Include="System.Reflection.DispatchProxy" />
 		<AOTWhitelist Include="System.Reflection.Emit" />
 		<AOTWhitelist Include="System.Reflection.Emit.ILGeneration" />
 		<AOTWhitelist Include="System.Reflection.Emit.Lightweight" />
+		<AOTWhitelist Include="System.Reflection.DispatchProxy" />
 		<AOTWhitelist Include="System.Reflection.Extensions" />
 		<AOTWhitelist Include="System.Reflection.Metadata" />
 		<AOTWhitelist Include="System.Reflection.Primitives" />
 		<AOTWhitelist Include="System.Reflection.TypeExtensions" />
-		-->
 		<AOTWhitelist Include="mscorlib" />
 		<AOTWhitelist Include="netstandard" />
 

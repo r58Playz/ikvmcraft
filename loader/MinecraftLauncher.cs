@@ -34,6 +34,8 @@ internal sealed class MinecraftLaunchOptions
 	public IReadOnlyDictionary<string, string> ExtraLaunchVariables { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyDictionary<string, string> SystemProperties { get; init; } = new Dictionary<string, string>(StringComparer.Ordinal);
 	public IReadOnlyList<IkvmClassLoaderTransformer> AsmTransformers { get; init; } = Array.Empty<IkvmClassLoaderTransformer>();
+
+	public IkvmPgoProfile PgoProfile { get; init; } = null;
 }
 
 internal sealed class MinecraftLaunchPlan
@@ -189,6 +191,17 @@ internal static class MinecraftLauncher
 		}
 
 		var loader = new IkvmClassLoader(plan.ClassPathJars, bundleMatch.ActiveDlls, transformers);
+
+		// The hot game classes are intermediary-named and only become loadable once fabric's Knot
+		// loader defines them (post-mixin). We can resolve mojmap->loaded *names* now (mappings are
+		// set), but the actual reflect.Method/MonoMethod has to wait until each class is defined. So
+		// register the profile; IkvmClassLoader.PgoOnClassDefined seeds the PGO table per class at the
+		// moment it is defined (Knot's defineClassFwd / our defineClass) — before any method compiles.
+		if (options.PgoProfile != null)
+		{
+			options.PgoProfile.Prepare();
+			IkvmClassLoader.PgoProfile = options.PgoProfile;
+		}
 
 		java.lang.Thread.currentThread().setContextClassLoader(loader);
 

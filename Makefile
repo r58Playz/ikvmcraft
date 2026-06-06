@@ -1,10 +1,9 @@
-STATICS_RELEASE=e3b702ce-5dec-4c13-b109-3e07d1100268
-IKVM_RELEASE=f54599ce-05cb-4703-b84b-b4ba0f593b77
+STATICS_RELEASE=7da2b7f4-317d-4d6e-b2ca-8c7c68f019ac
+IKVM_RELEASE=d7d79441-a71d-43dc-b723-3b263935bf81
 EPOXY_BASE=https://puter-net.b-cdn.net/epoxy/f006127
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
 OPT?=false
-PROFILER?=false
 
 statics:
 	mkdir statics
@@ -35,13 +34,13 @@ build: ikvmc-bundles
 #
 	./aotprofile.sh statics/ikvm_java.aotprofile statics/ikvm/IKVM.Java.dll \
 		ikvm.runtime. ikvm.internal. \
-		java.lang. java.util. java.nio. java.net. java.security. java.time. \
+		java.lang. java.util. java.io. java.nio. java.net. java.security. java.time. \
 		sun.nio.fs. sun.nio.cs. com.sun.nio.zipfs. \
 		sun.reflect. sun.misc.
 	./aotprofile.sh jars/ikvmc_fastutil-8.2.1.aotprofile jars/ikvmc_fastutil-8.2.1.dll \
 		@fastutil-aot-classes.txt
 #
-	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) -p:IkvmWasmEnableProfiler=$(PROFILER) $(DOTNETFLAGS)
+	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
 	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
 	# dotnet messed up

@@ -203,7 +203,11 @@ internal class TinyV1Mappings : IMappings
 						fields = new();
 						methods = new();
 					}
-					unmapped = parts[1];
+					// store the official name dotted so it matches MojmapMappings' (dotted) obf names
+					// when chained. Obfuscated classes are single tokens (no separators) so this is a
+					// no-op for them; it only matters for identity-mapped, package-path classes like
+					// com.mojang.blaze3d.systems.RenderSystem, which otherwise miss the slash-keyed dict.
+					unmapped = parts[1].Replace("/", ".");
 					mapped = parts[2].Replace("/", ".");
 					break;
 

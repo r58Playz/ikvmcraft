@@ -63,6 +63,57 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 
 	public static IkvmClassLoader LatestInstance;
 
+	// Interp PGO seeding. The profile (mojmap-keyed) is registered before the game runs. Its target
+	// classes are intermediary/obf-named and only become loadable as they are defined — by Knot's
+	// defineClassFwd under fabric (the InjectIkvmIntoKnot transform dups the returned Class into the
+	// bridge), or by defineClass here in vanilla. PgoOnClassDefined is called the moment a class is
+	// defined — before any of its methods can be called and compiled — so seeding always wins the
+	// race against tier-0 compilation, and nothing is ever force-loaded early (mixin-safe).
+	internal static IkvmPgoProfile PgoProfile;
+	// classes whose in-place seeding had to be deferred (finishing them mid-define pulls in a
+	// self-nested subclass). Retried once each on a later define, when they are fully registered.
+	private static readonly List<java.lang.Class> pgoRetry = new();
+	[ThreadStatic] private static bool pgoBusy;
+
+	internal static void PgoOnClassDefined(java.lang.Class klass)
+	{
+		var profile = PgoProfile;
+		if (profile is null)
+			return;
+
+		// Finishing a target can load its dependency classes, re-entering this hook. In that nested
+		// case just seed the dependency in place and don't touch the retry list.
+		if (pgoBusy)
+		{
+			if (klass is not null)
+				PgoSeed(profile, klass, mayDefer: false);
+			return;
+		}
+
+		pgoBusy = true;
+		try
+		{
+			java.lang.Class[] retries;
+			lock (pgoRetry) { retries = pgoRetry.ToArray(); pgoRetry.Clear(); }
+			foreach (var rc in retries)
+				PgoSeed(profile, rc, mayDefer: false);   // one-shot retry; drop if it fails again
+
+			if (klass is not null)
+				PgoSeed(profile, klass, mayDefer: true);
+		}
+		finally { pgoBusy = false; }
+	}
+
+	private static void PgoSeed(IkvmPgoProfile profile, java.lang.Class klass, bool mayDefer)
+	{
+		try
+		{
+			if (!profile.ResolveDefinedClass(klass) && mayDefer)
+				lock (pgoRetry) { pgoRetry.Add(klass); }
+		}
+		catch (Exception e) { Console.WriteLine($"[pgo] resolve error: {e.Message}"); }
+	}
+
     public IkvmClassLoader(string[] jars, IkvmClassLoaderDll[] dlls, IkvmClassLoaderTransformer[] transformers)
         : base((from jar in jars select new java.net.URL("file", "", jar)).ToArray(), null)
     {
@@ -235,7 +286,9 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 		java.security.ProtectionDomain protectionDomain = new(codeSource, null, this, null);
 
 		MaybeDefinePackage(name);
-        return defineClass(name, bytes, 0, bytes.Length, protectionDomain);
+        var defined = defineClass(name, bytes, 0, bytes.Length, protectionDomain);
+        PgoOnClassDefined(defined); // vanilla/obf path: seed PGO the moment the class is defined
+        return defined;
     }
 
 	public override java.net.URL getResource(string name)
