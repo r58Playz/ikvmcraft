@@ -164,6 +164,8 @@ static partial class IkvmWasm
 					RemoveDfuPreloadTransform.Transformer,
 					NoopAssertThreadTransform.Transformer,
 					NoopCheckAllocatedTransform.Transformer,
+
+					SealLeavesTransform.Transformer,
 				],
 				PgoProfile = profile,
             });

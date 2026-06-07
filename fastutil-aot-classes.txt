@@ -163,6 +163,7 @@ it.unimi.dsi.fastutil.longs.Long2FloatFunctions
 it.unimi.dsi.fastutil.longs.Long2FloatLinkedOpenHashMap
 it.unimi.dsi.fastutil.longs.Long2FloatMap
 it.unimi.dsi.fastutil.longs.Long2FloatMaps
+it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap
 it.unimi.dsi.fastutil.longs.Long2FloatSortedMap
 it.unimi.dsi.fastutil.longs.Long2FloatSortedMaps
 it.unimi.dsi.fastutil.longs.Long2IntFunction

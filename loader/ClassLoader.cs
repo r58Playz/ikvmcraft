@@ -9,6 +9,24 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 using IKVM.Runtime;
 
+// ClassWriter.COMPUTE_FRAMES re-derives stack-map frames, which calls getCommonSuperClass to merge
+// reference types at control-flow joins. The default implementation loads both classes via the
+// classloader to find their common ancestor — but during incremental class loading a referenced MC
+// type is often not defined yet, so the load throws and the whole transform aborts the class load
+// (e.g. SealLeaves on WorldBorder/class_2784). Falling back to java/lang/Object on any resolution
+// failure keeps frame computation alive (Object is a valid, if wider, merge result), so a transform
+// never kills a class load over a not-yet-loadable type.
+internal class SafeClassWriter : org.objectweb.asm.ClassWriter
+{
+	public SafeClassWriter(org.objectweb.asm.ClassReader reader, int flags) : base(reader, flags) { }
+
+	protected override string getCommonSuperClass(string type1, string type2)
+	{
+		try { return base.getCommonSuperClass(type1, type2); }
+		catch (Exception) { return "java/lang/Object"; }
+	}
+}
+
 class AssemblyURLConnection : java.net.JarURLConnection
 {
 	private readonly java.net.URL JarUrl;
@@ -211,7 +229,7 @@ internal sealed class IkvmClassLoader : java.net.URLClassLoader
 			try
 			{
 				org.objectweb.asm.ClassReader reader = new(bytes);
-				org.objectweb.asm.ClassWriter writer = new(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES | org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
+				org.objectweb.asm.ClassWriter writer = new SafeClassWriter(reader, org.objectweb.asm.ClassWriter.COMPUTE_FRAMES | org.objectweb.asm.ClassWriter.COMPUTE_MAXS);
 				var visitor = (org.objectweb.asm.ClassVisitor)Activator.CreateInstance(transformer.Visitor, [name, writer]);
 				reader.accept(visitor, 0);
 

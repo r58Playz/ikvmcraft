@@ -173,6 +173,9 @@ extern int    mono_jiterp_get_trace_count (void);
 extern void  *mono_jiterp_get_trace_method (int trace_index);
 extern double mono_jiterp_get_trace_hit_count (int trace_index);
 extern int    mono_jiterp_get_trace_is_compiled (int trace_index);
+extern int    mono_jiterp_get_trace_abort_reason (int trace_index);
+// MINT opcode -> name (lock-free static-table read), to name a trace's abort opcode.
+extern const char *mono_interp_opname (int op);
 // Name resolution via LOCK-FREE field reads only (these just return ->name / ->name_space and
 // never take the image/loader lock or allocate), so the dump is safe to run on the UI thread —
 // unlike mono_method_get_full_name, which locks for signature/generic formatting and deadlocks
@@ -182,7 +185,7 @@ extern void       *mono_method_get_class (void *method);
 extern const char *mono_class_get_name (void *klass);
 extern const char *mono_class_get_namespace (void *klass);
 
-typedef struct { void *m; double hits; int traces; int compiled; } HeatAgg;
+typedef struct { void *m; double hits; int traces; int compiled; int abort; } HeatAgg;
 static int heat_cmp_method (const void *a, const void *b) {
 	void *x = ((const HeatAgg *)a)->m, *y = ((const HeatAgg *)b)->m;
 	return x < y ? -1 : x > y ? 1 : 0;
@@ -190,6 +193,16 @@ static int heat_cmp_method (const void *a, const void *b) {
 static int heat_cmp_hits (const void *a, const void *b) {
 	double x = ((const HeatAgg *)a)->hits, y = ((const HeatAgg *)b)->hits;
 	return x < y ? 1 : x > y ? -1 : 0;
+}
+// abort_reason code (see TraceInfo.abort_reason) -> printable string. >= 0 is a MINT opcode.
+static const char *heat_abort_name (int code) {
+	if (code >= 0) return mono_interp_opname (code);
+	switch (code) {
+		case -1: return "(small)";   // too small / reached end of body
+		case -2: return "(big)";     // trace too big
+		case -3: return "(other)";   // other string reason
+		default: return "-";         // -100: never attempted
+	}
 }
 
 EMSCRIPTEN_KEEPALIVE void dump_jiterp_trace_heat (int top_n) {
@@ -209,6 +222,7 @@ EMSCRIPTEN_KEEPALIVE void dump_jiterp_trace_heat (int top_n) {
 		double h = mono_jiterp_get_trace_hit_count (i);
 		a[cnt].m = m; a[cnt].hits = h; a[cnt].traces = 1;
 		a[cnt].compiled = mono_jiterp_get_trace_is_compiled (i) ? 1 : 0;
+		a[cnt].abort = mono_jiterp_get_trace_abort_reason (i);
 		total_hits += h; cnt++;
 	}
 
@@ -217,8 +231,14 @@ EMSCRIPTEN_KEEPALIVE void dump_jiterp_trace_heat (int top_n) {
 	int w = 0;
 	for (int i = 0; i < cnt;) {
 		int j = i; double h = 0; int t = 0, c = 0;
-		while (j < cnt && a[j].m == a[i].m) { h += a[j].hits; t += a[j].traces; c += a[j].compiled; j++; }
-		a[w].m = a[i].m; a[w].hits = h; a[w].traces = t; a[w].compiled = c; w++; i = j;
+		// attribute the method's abort reason to its hottest entry point that never compiled
+		int best_abort = -100; double best_abort_hits = -1;
+		while (j < cnt && a[j].m == a[i].m) {
+			h += a[j].hits; t += a[j].traces; c += a[j].compiled;
+			if (!a[j].compiled && a[j].hits > best_abort_hits) { best_abort_hits = a[j].hits; best_abort = a[j].abort; }
+			j++;
+		}
+		a[w].m = a[i].m; a[w].hits = h; a[w].traces = t; a[w].compiled = c; a[w].abort = best_abort; w++; i = j;
 	}
 	qsort (a, (size_t)w, sizeof (HeatAgg), heat_cmp_hits);
 	if (top_n <= 0 || top_n > w) top_n = w;
@@ -233,15 +253,16 @@ EMSCRIPTEN_KEEPALIVE void dump_jiterp_trace_heat (int top_n) {
 	} while (0)
 
 	HEAT_APPEND ("=== jiterp trace heat: %d methods / %d entry points, %.0f total entry-hits (all threads) ===\n", w, cnt, total_hits);
-	HEAT_APPEND ("        hits   jit/eps  method  (jit<eps => hot method the jiterpreter didn't fully trace)\n");
+	HEAT_APPEND ("        hits   jit/eps  abort@        method  (jit<eps => hot; abort@ = why the hottest uncompiled entry failed)\n");
 	for (int i = 0; i < top_n; i++) {
 		void *k = mono_method_get_class (a[i].m);
 		const char *mn = mono_method_get_name (a[i].m);
 		const char *cn = k ? mono_class_get_name (k) : "?";
 		const char *ns = k ? mono_class_get_namespace (k) : "";
+		const char *ab = heat_abort_name (a[i].abort);
 		// "ns.Class:method" from lock-free field reads; nothing to free (not allocations)
-		HEAT_APPEND ("%12.0f   %3d/%-3d  %s%s%s:%s\n", a[i].hits, a[i].compiled, a[i].traces,
-			ns ? ns : "", (ns && ns[0]) ? "." : "", cn ? cn : "?", mn ? mn : "?");
+		HEAT_APPEND ("%12.0f   %3d/%-3d  %-13s %s%s%s:%s\n", a[i].hits, a[i].compiled, a[i].traces,
+			ab, ns ? ns : "", (ns && ns[0]) ? "." : "", cn ? cn : "?", mn ? mn : "?");
 	}
 	#undef HEAT_APPEND
 	free (a);

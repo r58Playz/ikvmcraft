@@ -1,5 +1,5 @@
-STATICS_RELEASE=7da2b7f4-317d-4d6e-b2ca-8c7c68f019ac
-IKVM_RELEASE=d7d79441-a71d-43dc-b723-3b263935bf81
+STATICS_RELEASE=04188551-4df9-4ffb-aa7b-fcada59156f1
+IKVM_RELEASE=c9c54d90-5a40-427d-9109-df9dd9a1bd9a
 EPOXY_BASE=https://puter-net.b-cdn.net/epoxy/f006127
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=false
@@ -33,9 +33,8 @@ build: ikvmc-bundles
 	rm -r frontend/public/{_framework,ikvm} loader/bin/Release/net10.0/publish/wwwroot/_framework || true
 #
 	./aotprofile.sh statics/ikvm_java.aotprofile statics/ikvm/IKVM.Java.dll \
-		ikvm.runtime. ikvm.internal. \
-		java.lang. java.util. java.io. java.nio. java.net. java.security. java.time. \
-		sun.nio.fs. sun.nio.cs. com.sun.nio.zipfs. \
+		ikvm. java.lang. java.util. java.io. java.nio. java.net. java.security. java.time. java.math. \
+		sun.nio.fs. sun.nio.cs. com.sun.nio.zipfs. sun.net. \
 		sun.reflect. sun.misc.
 	./aotprofile.sh jars/ikvmc_fastutil-8.2.1.aotprofile jars/ikvmc_fastutil-8.2.1.dll \
 		@fastutil-aot-classes.txt
