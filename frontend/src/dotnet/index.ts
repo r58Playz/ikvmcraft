@@ -199,19 +199,21 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 		.withEnvironmentVariable("MONO_SLEEP_ABORT_LIMIT", "20000")
 		.withEnvironmentVariable(
 			"MONO_GC_PARAMS",
-			"nursery-size=64m,tlab-size=64k,max-heap-size=2560m,default-allowance-ratio=2.0,major=marksweep-conc-par,minor=simple-par"
+			"nursery-size=64m,tlab-size=64k,max-heap-size=3000m,default-allowance-ratio=2.0,major=marksweep-conc-par,minor=simple-par"
 		)
 		//.withEnvironmentVariable("MONO_GC_DEBUG", "binary-protocol=/gcproto:64m")
 		//.withEnvironmentVariable("MONO_GC_DEBUG", "print-pinning,print-gchandles")
 
 		//.withEnvironmentVariable("IKVM_TRACE_LOADCLASS", "1")
-		.withEnvironmentVariable("IKVM_EAGER_LINK_JARS", "1")
+		//.withEnvironmentVariable("IKVM_TRACE_DEFINE", "1")
+		//.withEnvironmentVariable("IKVM_TRACE_VERIFYLOADS", "1")
+		//.withEnvironmentVariable("IKVM_VERIFY_LOADS", "shadow")
+		//.withEnvironmentVariable("IKVM_TRACE_RESOLUTION_ERRORS", "1")
 		.withEnvironmentVariable("IKVM_LAZY_CLASS_LOADING", "1")
 		.withEnvironmentVariable("IKVM_LAZY_INPLACE", "1")
 		.withEnvironmentVariable("IKVM_LAZY_SIG", "1")
 
-		// cap threadpools
-		.withEnvironmentVariable("DOTNET_PROCESSOR_COUNT", "4")
+		.withEnvironmentVariable("DOTNET_PROCESSOR_COUNT", String(Math.min(navigator.hardwareConcurrency || 4, 4)))
 		.withEnvironmentVariable("MONO_LOG_LEVEL", "debug")
 		.withEnvironmentVariable("MONO_LOG_MASK", "gc")
 		//.withEnvironmentVariable("MONO_LOG_MASK", "aot")

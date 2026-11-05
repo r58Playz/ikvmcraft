@@ -1,7 +1,6 @@
 import { ComponentInstance, css, FC, Stateful } from "dreamland/core";
 import "./style.css";
 import { initDotnet, play, dotnetState, MinecraftAuthInfo } from "./dotnet";
-import { loglisteners } from "./dotnet/log";
 import { dumpWasmJit } from "./dotnet/jitbench";
 import {
 	downloadFabricMinecraftVersionToOpfs,
@@ -11,6 +10,7 @@ import {
 import { OpfsExplorer } from "./fs";
 import { Button, Icon } from "./ui/Button";
 import { TextField } from "./ui/TextField";
+import { LogView } from "./ui/LogView";
 import { createStore } from "dreamland/util";
 import {
 	getProfile,
@@ -25,57 +25,6 @@ import iconFolderOpen from "@ktibow/iconset-material-symbols/folder-open";
 import iconPlayArrow from "@ktibow/iconset-material-symbols/play-arrow";
 import iconLogin from "@ktibow/iconset-material-symbols/login";
 import iconLogout from "@ktibow/iconset-material-symbols/logout";
-
-function LogView(this: FC<{ scrolling: boolean }>) {
-	const create = (color: string, log: string) => {
-		const el = document.createElement("div");
-		el.classList.add("log");
-		el.innerText = log;
-		el.style.color = color;
-		return el;
-	};
-
-	this.cx.mount = () => {
-		const logroot = this.root as HTMLElement;
-		const frag = document.createDocumentFragment();
-
-		loglisteners.push((x) => frag.append(create(x.color, x.log)));
-		setInterval(() => {
-			if (frag.children.length > 0) {
-				logroot.appendChild(frag);
-				logroot.scrollTop = logroot.scrollHeight;
-			}
-		}, 50);
-	};
-
-	return (
-		<div
-			class="component-log"
-			style={this.scrolling ? "overflow: auto" : "overflow: hidden"}
-		/>
-	);
-}
-LogView.style = css`
-	:scope {
-		min-height: 0;
-		flex: 1;
-		font-family: var(--font-mono);
-
-		padding: 0.5rem;
-		background: var(--bg-sub);
-		border-top: 0.1rem solid var(--surface4);
-	}
-
-	::-webkit-scrollbar {
-		width: 10px;
-	}
-	::-webkit-scrollbar-track {
-		background: var(--surface3);
-	}
-	::-webkit-scrollbar-thumb {
-		background: var(--surface6);
-	}
-`;
 
 function Logo(this: FC) {
 	return <span>ikvmcraft</span>;
