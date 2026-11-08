@@ -90,7 +90,8 @@ export async function provisionOpfsFile(
  *
  *   ?wj.overrides={"vcall_ways":1}         JSON blob of short wasm_jit knob names
  *   ?wj.vcall_ways=1                       one short knob per param -> MONO_WASM_JIT_VCALL_WAYS
- *   ?wj.MONO_GC_PARAMS=nursery-size=4m     a name already carrying an env prefix passes through as-is
+ *   ?wj.MONO_GC_PARAMS=nursery-size=4m     a name already carrying an env prefix (MONO_ IKVM_ DOTNET_ WINK_ GEX_ MESA_
+ *                                          GALLIUM_ NIR_ GLFW_) passes through as-is
  *   ?ro.jiterpreter-aot-table-size=3072    replaces the matching --<name>=<value> runtime option
  *   ?ro.no-jiterpreter-traces-enabled      valueless -> appends the bare --<name> flag
  *
@@ -247,11 +248,11 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 	);
 
 	// ?wj.<NAME>=<value>. A name that already carries an env prefix is passed straight through (so
-	// MONO_GC_PARAMS / IKVM_* are reachable too, and mesa-wink's GEX_WGPU_* / MESA_* switches, which read the same
-	// C environment); anything else is a short wasm_jit knob.
+	// MONO_GC_PARAMS / IKVM_* are reachable too, mesa-wink's GEX_WGPU_* / MESA_* switches, and the GLFW port's
+	// GLFW_* (GLFW_NOW_CACHE), which read the same C environment); anything else is a short wasm_jit knob.
 	const passthroughEnv: [string, string][] = [];
 	for (const [name, val] of queryOverrides("wj.")) {
-		if (/^(MONO|IKVM|DOTNET|WINK|GEX|MESA|GALLIUM|NIR)_/i.test(name))
+		if (/^(MONO|IKVM|DOTNET|WINK|GEX|MESA|GALLIUM|NIR|GLFW)_/i.test(name))
 			passthroughEnv.push([name.toUpperCase(), val]);
 		else overrides[name.toLowerCase()] = val;
 	}
