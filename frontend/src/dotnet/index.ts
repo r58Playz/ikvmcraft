@@ -127,9 +127,6 @@ function applyRuntimeOptionOverrides(options: string[]) {
 }
 
 export async function initDotnet(canvas: HTMLCanvasElement) {
-	// emscripten proxy hackfix number 39847232303
-	(globalThis as any).Atomics.waitAsync = undefined;
-
 	// bench.jar is on the IKVM classpath at PreInit below, so it has to be in OPFS before that.
 	await provisionOpfsFile("bench.jar", "/bench.jar");
 
