@@ -28,7 +28,7 @@
 		<WasmEnableThreads>true</WasmEnableThreads>
 		<WasmEnableSIMD>true</WasmEnableSIMD>
 		<WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
-		<WasmEnableWebcil>false</WasmEnableWebcil>
+		<WasmEnableWebcil>true</WasmEnableWebcil>
 		<WasmRunWasmOpt>$(IkvmWasmEnableWasmOpt)</WasmRunWasmOpt>
 
 		<WasmBitcodeCompileOptimizationFlag>-O3</WasmBitcodeCompileOptimizationFlag>

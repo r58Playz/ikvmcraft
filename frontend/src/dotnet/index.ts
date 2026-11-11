@@ -33,7 +33,8 @@ export function getDlls(): (readonly [string, string])[] {
 		...(config.resources?.coreAssembly || []),
 		...(config.resources?.assembly || []),
 	];
-	return resources.map((x) => [x.name, x.virtualPath] as const);
+	// webcil assemblies are .wasm files; /dlls keeps the .dll names Java code sources use (loader/ClassLoader.cs)
+	return resources.map((x) => [x.name, x.virtualPath.replace(/\.wasm$/, ".dll")] as const);
 }
 
 /*
