@@ -334,7 +334,7 @@ export async function play(version: string, authInfo: MinecraftAuthInfo) {
 	// (shown after the committed number below), heap = the sbrk break (what hits the 4 GiB; the wasm length grows
 	// ahead of it)
 	setInterval(() => {
-		dotnetState.wasmMemory = mod.wasmMemory.buffer.byteLength / (1024 * 1024);
+		dotnetState.wasmMemory = mod._ikvm_wasm_memory_mb();
 		dotnetState.nativeMemory = mod._ikvm_native_used_mb();
 		dotnetState.gcHeapMemory = mod._ikvm_gc_heap_mb();
 		dotnetState.heapMemory = mod._ikvm_heap_top_mb();

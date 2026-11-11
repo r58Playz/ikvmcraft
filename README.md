@@ -1,6 +1,6 @@
 # ikvmcraft
 
-Modern Minecraft + drop-in mods loaded dynamically in the browser with mono-wasm and IKVM. Uses a [custom fork of IKVM](https://github.com/r58Playz/ikvm/tree/wasm) with exact OpenJDK classloading semantics and other wasm patches, as well as a [custom fork of mono](https://github.com/r58Playz/dotnet-runtime/tree/wasm-jspi-jit-10.0.3) with a full wasm JIT tier significantly improving performance over interp/jiterp.
+Modern Minecraft + drop-in mods loaded dynamically in the browser with mono-wasm and IKVM. Uses a [custom fork of IKVM](https://github.com/r58Playz/ikvm/tree/wasm) with exact OpenJDK classloading semantics and other wasm patches, as well as a [custom fork of mono](https://github.com/r58Playz/dotnet-runtime/tree/wasm-jit-11.0.0) with a full wasm JIT tier significantly improving performance over interp/jiterp.
 
 ![Minecraft 26.2 with Fabulously Optimized modpack](assets/26.2-fabulouslyoptimized.png)
 Minecraft 26.2 with Fabulously Optimized modpack
@@ -17,7 +17,7 @@ NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR 
 
 ## building
 
-1. download dotnet 10, a jdk, and potentially also mono. be on linux.
+1. download dotnet 11, a jdk, and potentially also mono. be on linux.
 2. run `sudo dotnet workload restore` in `loader` folder
 3. run `make build` in this folder to build
 4. run `make serve` to serve a DEVELOPMENT version that SHOULD NOT BE HOSTED PUBLICLY.
