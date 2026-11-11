@@ -127,7 +127,7 @@ internal static class MinecraftLauncher
 		}
 
 		var jarsToSkip = bundleMatch?.JarsToSkip;
-		string[] classPathJars = [.. BuildClassPath(root, libraryDirectoryPath, versionJarPath, options.MinecraftOsName, featureFlags, jarsToSkip), ExtractIkvmcraftJar()];
+		string[] classPathJars = [.. BuildClassPath(root, libraryDirectoryPath, versionJarPath, options.MinecraftOsName, featureFlags, jarsToSkip)];
 
 		return new MinecraftLaunchPlan
 		{
@@ -473,23 +473,6 @@ internal static class MinecraftLauncher
 
 		classPath.Add(versionJarPath);
 		return classPath.Distinct(StringComparer.Ordinal).ToArray();
-	}
-
-	// ikvmcraft.jar (loader/java, embedded by IkvmWasm.csproj) is the loader's Java classes, like the game's netty channel.
-	// They go on the classpath as a library so that whichever class loader loads the game's libraries (ours, or Knot's)
-	// loads them too, and links them against the same netty.
-	private const string IkvmcraftJarResource = "IkvmWasm.ikvmcraft.jar";
-	private const string IkvmcraftJarPath = "/tmp/ikvmcraft/ikvmcraft.jar";
-
-	private static string ExtractIkvmcraftJar()
-	{
-		using var resource = typeof(MinecraftLauncher).Assembly.GetManifestResourceStream(IkvmcraftJarResource)
-			?? throw new InvalidOperationException($"Embedded '{IkvmcraftJarResource}' not found in assembly.");
-
-		Directory.CreateDirectory(Path.GetDirectoryName(IkvmcraftJarPath));
-		using var file = File.Create(IkvmcraftJarPath);
-		resource.CopyTo(file);
-		return IkvmcraftJarPath;
 	}
 
 	private static List<string> ResolveLibraryRelativePaths(

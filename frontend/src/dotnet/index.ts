@@ -1,10 +1,14 @@
 import { createState } from "dreamland/core";
 import type { ModuleAPI, MonoConfig, RuntimeAPI } from "../dotnetdefs";
-import { EpxTcpWs } from "../net";
+import { wispUrl } from "../net";
+// wisp-js's self-contained client, which the network pthread imports (loader/wasmfs-wisp-transport.js); the package
+// exports only its sources, so name the file
+import wispClientUrl from "../../node_modules/@mercuryworkshop/wisp-js/dist/wisp-client.mjs?url";
 import { opfsInvalidate } from "../opfs";
 import { fetchResource } from "./resources.js";
 
 const wasm: ModuleAPI = await eval(`import("/_framework/dotnet.js")`);
+const benchJar = (new URLSearchParams(location.search).get("jar") ?? "bench.jar").replace(/[^\w.-]/g, "");
 const dotnet = wasm.dotnet;
 let runtime: RuntimeAPI;
 let config: MonoConfig;
@@ -127,17 +131,9 @@ function applyRuntimeOptionOverrides(options: string[]) {
 }
 
 export async function initDotnet(canvas: HTMLCanvasElement) {
-	// bench.jar is on the IKVM classpath at PreInit below, so it has to be in OPFS before that.
-	await provisionOpfsFile("bench.jar", "/bench.jar");
-
-	(globalThis as any).WebSocket = new Proxy(WebSocket, {
-		construct(t, a, n) {
-			const url = new URL(a[0]);
-			if (url.hostname.startsWith("wisp-")) return new EpxTcpWs(url);
-
-			return Reflect.construct(t, a, n);
-		},
-	});
+	// bench.jar is on the IKVM classpath at PreInit below, so it has to be in OPFS before that. `?bench&jar=<file>` runs
+	// another jar from public/ the same way (e.g. a test jar).
+	await provisionOpfsFile(benchJar, `/${benchJar}`);
 
 	console.time("dotnet ");
 	//(globalThis as any).GLFW3_DEBUG = true;
@@ -193,6 +189,9 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 						: r
 			);
 		})
+		// the transport behind Java's sockets (emsdk.12's WasmFS sockets, loader/wasmfs-wisp-transport.js)
+		.withEnvironmentVariable("IKVM_WISP_URL", wispUrl())
+		.withEnvironmentVariable("IKVM_WISP_CLIENT_URL", new URL(wispClientUrl, location.href).href)
 		.withEnvironmentVariable("WINK_GL_MAIN", winkGlMain ? "1" : "0")
 		.withEnvironmentVariable("GEX_WGSL_CACHE", "0")
 		.withEnvironmentVariable("MONO_SLEEP_ABORT_LIMIT", "20000")
@@ -317,7 +316,7 @@ export async function initDotnet(canvas: HTMLCanvasElement) {
 
 	await exports.IkvmWasm.PreInit(
 		fetchbase,
-		["/libsdl/bench.jar"],
+		[`/libsdl/${benchJar}`],
 		getDlls().map((x) => `${x[0]}|${x[1]}`),
 		sysProps
 	);
@@ -359,8 +358,8 @@ export async function play(version: string, authInfo: MinecraftAuthInfo) {
 	}, 1000);
 
 	if (new URLSearchParams(location.search).has("bench")) {
-		console.debug("Run bench.jar...");
-		await exports.IkvmWasm.RunJar("/libsdl/bench.jar");
+		console.debug(`Run ${benchJar}...`);
+		await exports.IkvmWasm.RunJar(`/libsdl/${benchJar}`);
 	} else {
 		console.debug("Run...");
 		await exports.IkvmWasm.Run(version, authInfo.playerName, authInfo.uuid, authInfo.accessToken, authInfo.userType);

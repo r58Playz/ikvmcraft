@@ -149,8 +149,6 @@ static partial class IkvmWasm
         }
 
         IkvmNetworkInterfaces.Install();
-        IkvmNameService.Install();
-        IkvmSocketService.Install();
     }
 
     // BENCHMARK/DIAGNOSTIC, off unless set: IKVM_GAME_OPTIONS=key:value[,key:value...] rewrites those lines of the game's
@@ -201,7 +199,6 @@ static partial class IkvmWasm
                 AsmTransformers =
                 [
 					InjectIkvmIntoKnotTransform.Transformer,
-					SwapNettyBackendTransform.Transformer,
 
 					ThereAreNoBareClientsTransform.Transformer,
 
