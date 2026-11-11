@@ -11,14 +11,14 @@ Minecraft 1.16.5 in-game with 24 render distance
 ![Minecraft 1.16.5 in-game with BSL Medium & 12 render distance](assets/1.16.5-bsl.png)
 Minecraft 1.16.5 in-game with BSL Medium & 12 render distance
 
-Supports Minecraft 1.13-26.2 with Fabric 0.19.x (other Fabric versions not tested but may work). Java runtime is mostly Java 25 compliant. Uses OpenGL 4.6 on top of WebGPU.
+Supports Minecraft 1.13-26.2 with Fabric 0.19.x (other Fabric versions not tested but may work). Java runtime is mostly Java 25 compliant. Uses OpenGL 4.6 on top of WebGPU. Java's networking (sockets, NIO, TLS) is the JDK's own, over sockets implemented in emscripten's WasmFS and tunnelled through a [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server (`?wisp=<url>` picks one).
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
 
 ## building
 
 1. download dotnet 11, a jdk, and potentially also mono. be on linux.
-2. run `sudo dotnet workload restore` in `loader` folder
+2. run `dotnet workload restore` in `loader` folder (with `sudo` if dotnet is a system-wide install)
 3. run `make build` in this folder to build
 4. run `make serve` to serve a DEVELOPMENT version that SHOULD NOT BE HOSTED PUBLICLY.
 5. run `make publish` to build a PRODUCTION version in `frontend/dist` folder.
