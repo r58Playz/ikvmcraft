@@ -179,6 +179,20 @@ static partial class IkvmWasm
         Console.WriteLine($"[IKVM] options.txt overrides applied: {spec}");
     }
 
+    // DIAGNOSTIC, off unless set: IKVM_GAME_ARGS="--quickPlayMultiplayer 127.0.0.1:25565" appends whitespace-separated
+    // arguments to Minecraft's command line. The harness uses it to join a local offline-mode server through the dev
+    // server's wisp (multiplayer repro, 2026-11-11). It changes what the game does, so it travels in the URL
+    // (?wj.IKVM_GAME_ARGS=...) like every knob.
+    static string[] ExtraGameArgumentOverrides()
+    {
+        var spec = Environment.GetEnvironmentVariable("IKVM_GAME_ARGS");
+        if (string.IsNullOrWhiteSpace(spec))
+            return [];
+        var extra = spec.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Console.WriteLine($"[IKVM] extra game arguments: {string.Join(" ", extra)}");
+        return extra;
+    }
+
     [JSExport]
     internal static Task Run(string version, string playerName, string uuid, string accessToken, string userType)
     {
@@ -218,7 +232,8 @@ static partial class IkvmWasm
 				Uuid = uuid,
 				AccessToken = accessToken,
 				UserType = userType,
-				UserPropertiesJson = "{}"
+				UserPropertiesJson = "{}",
+				ExtraGameArguments = ExtraGameArgumentOverrides()
             });
 
             return Task.CompletedTask;
