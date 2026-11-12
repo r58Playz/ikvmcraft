@@ -35,7 +35,8 @@ int mount_opfs() {
 backend_t fetch_backend[8] = { NULL };
 
 int mount_fetch(int id, char *srcdir, char *dstdir) {
-	fetch_backend[id] = wasmfs_create_fetch_backend(srcdir);
+	/* chunk size 0: the backend's default (emscripten 6 added the parameter) */
+	fetch_backend[id] = wasmfs_create_fetch_backend(srcdir, 0);
 	return wasmfs_create_directory(dstdir, 0777, fetch_backend[id]);
 }
 
@@ -78,6 +79,11 @@ EMSCRIPTEN_KEEPALIVE double ikvm_gc_heap_mb(void) {
 }
 EMSCRIPTEN_KEEPALIVE double ikvm_heap_top_mb(void) {
   return (double)(size_t)sbrk(0) / (1024.0 * 1024.0);
+}
+/* The wasm memory's current length. Read here rather than through Module.wasmMemory, which emscripten 6 no longer puts
+ * on the module object, and rather than a JS heap view, whose buffer does not follow growth done on another thread. */
+EMSCRIPTEN_KEEPALIVE double ikvm_wasm_memory_mb(void) {
+  return (double)__builtin_wasm_memory_size(0) * 65536.0 / (1024.0 * 1024.0);
 }
 
 void classloader_debug(char* log) {

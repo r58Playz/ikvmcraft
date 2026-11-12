@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DOTNET_ROOT="$(dirname "$(readlink -f "$(command -v dotnet)")")"
-REF_DIR="$(ls -d "$DOTNET_ROOT"/packs/Microsoft.NETCore.App.Ref/*/ref/net10.0 2>/dev/null | sort -V | tail -1)"
+REF_DIR="$(ls -d "$DOTNET_ROOT"/packs/Microsoft.NETCore.App.Ref/*/ref/net11.0 2>/dev/null | sort -V | tail -1)"
 CORLIB_DLL_IMPORTS=$(find "$REF_DIR" -type f -name '*.dll' -exec printf -- '-r %s ' {} +)
 
 OUTPUT="$1"

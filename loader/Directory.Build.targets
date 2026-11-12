@@ -1,7 +1,26 @@
-<Project>
+<Project InitialTargets="_IkvmWebcilTasksOverlay">
 	<PropertyGroup>
-		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' == 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net10.0\</_PatchedWasmTasksDir>
-		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' != 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net472\</_PatchedWasmTasksDir>
+		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' == 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net\</_PatchedWasmTasksDir>
+		<_PatchedWasmTasksDir Condition="'$(MSBuildRuntimeType)' != 'Core'">$(MicrosoftNetCoreAppRuntimePackDir)\tasks\netframework\</_PatchedWasmTasksDir>
 		<WasmAppBuilderTasksAssemblyPath>$(_PatchedWasmTasksDir)WasmAppBuilder.dll</WasmAppBuilderTasksAssemblyPath>
+		<!-- The webcil converter (ConvertDllsToWebCil) is the WebAssembly SDK pack's task, not WasmAppBuilder's: point the
+		     pack's tasks directory (_WebAssemblySdkTasksDirectory, which its Browser.targets only sets when empty and which is
+		     imported after this file) at an overlay of the pack's tools/ with the runtime pack's
+		     Microsoft.NET.WebAssembly.Webcil.dll on top. That wrapper exports getWebcilRange, which lets the runtime keep
+		     assemblies out of linear memory and read them on demand (dotnet-runtime-jspi R529). -->
+		<_IkvmWasmSdkOverlay>$(MSBuildThisFileDirectory)obj\webassembly-sdk\</_IkvmWasmSdkOverlay>
+		<_WebAssemblySdkTasksDirectory Condition="'$(MSBuildRuntimeType)' == 'Core'">$(_IkvmWasmSdkOverlay)tools\net\</_WebAssemblySdkTasksDirectory>
+		<_WebAssemblySdkTasksDirectory Condition="'$(MSBuildRuntimeType)' != 'Core'">$(_IkvmWasmSdkOverlay)tools\netframework\</_WebAssemblySdkTasksDirectory>
 	</PropertyGroup>
+
+	<!-- Runs before any target, so the overlay exists when the first pack task loads; _WebAssemblyTargetsFile (the pack's
+	     Browser.targets, defined by its Pack.targets) locates the pack the build resolved. -->
+	<Target Name="_IkvmWebcilTasksOverlay" Condition="'$(_WebAssemblyTargetsFile)' != ''">
+		<ItemGroup>
+			<_IkvmWasmSdkTool Include="$([System.IO.Path]::GetDirectoryName('$(_WebAssemblyTargetsFile)'))\..\tools\**\*" />
+		</ItemGroup>
+		<Copy SourceFiles="@(_IkvmWasmSdkTool)" DestinationFiles="@(_IkvmWasmSdkTool->'$(_IkvmWasmSdkOverlay)tools\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(MicrosoftNetCoreAppRuntimePackDir)\tasks\net\Microsoft.NET.WebAssembly.Webcil.dll" DestinationFolder="$(_IkvmWasmSdkOverlay)tools\net\" />
+		<Copy SourceFiles="$(MicrosoftNetCoreAppRuntimePackDir)\tasks\netframework\Microsoft.NET.WebAssembly.Webcil.dll" DestinationFolder="$(_IkvmWasmSdkOverlay)tools\netframework\" Condition="Exists('$(MicrosoftNetCoreAppRuntimePackDir)\tasks\netframework\Microsoft.NET.WebAssembly.Webcil.dll')" />
+	</Target>
 </Project>

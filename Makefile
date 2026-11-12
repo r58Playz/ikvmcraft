@@ -1,12 +1,12 @@
-STATICS_RELEASE=07b797ee-6980-40eb-a5bc-796ce6ab9b4d
-IKVM_RELEASE=f9e49c9f-133a-4194-a0c8-ad5ffe785852
+STATICS_RELEASE=192bd21d-7689-46d3-a0d9-53ea3df5feaf
+IKVM_RELEASE=c830250f-24ea-4ad5-a94b-54434fa94856
 DOTNETFLAGS=--nodereuse:false -v n
 AOT?=true
 OPT?=false
 
 statics:
 	mkdir statics
-	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/dotnet-jspi-jit.zip -O statics/dotnet.zip
+	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/dotnet-jit.zip -O statics/dotnet.zip
 	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/emsdk.zip -O statics/emsdk.zip
 	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/SDL3.a -O statics/SDL3.a
 	wget https://github.com/r58Playz/FNA-WASM-Build/releases/download/$(STATICS_RELEASE)/libopenal.a -O statics/libopenal.a
@@ -32,10 +32,10 @@ ikvmc-bundles: statics
 deps: statics ikvmc-bundles
 
 build: ikvmc-bundles
-	rm -r frontend/public/{_framework,ikvm} loader/bin/Release/net10.0/publish/wwwroot/_framework || true
+	rm -r frontend/public/{_framework,ikvm} loader/bin/Release/net11.0/publish/wwwroot/_framework || true
 #
 	dotnet publish loader/IkvmWasm.csproj -c Release -p:IkvmWasmEnableAot=$(AOT) -p:IkvmWasmEnableWasmOpt=$(OPT) $(DOTNETFLAGS)
-	cp -r loader/bin/Release/net10.0/publish/wwwroot/_framework frontend/public/
+	cp -r loader/bin/Release/net11.0/publish/wwwroot/_framework frontend/public/
 	cp -r statics/ikvm/image frontend/public/
 	# dotnet messed up
 	sed -i 's/this.appendULeb(32768)/this.appendULeb(65535)/' frontend/public/_framework/dotnet.runtime.*.js
